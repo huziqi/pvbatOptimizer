@@ -1,7 +1,10 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from typing import Dict, List
+from typing import Dict, List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .config import OptimizerConfig
 
 class OptimizerUtils:
     @staticmethod
@@ -34,7 +37,8 @@ class OptimizerUtils:
         results: Dict,
         load_profile: pd.Series,
         pv_profile: pd.Series,
-        save_path: str = None
+        save_path: str = None,
+        plot: bool = False
     ):
         """绘制优化结果图表"""
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8))
@@ -61,8 +65,8 @@ class OptimizerUtils:
         
         if save_path:
             plt.savefig(save_path, dpi=300, bbox_inches='tight')
-        
-        plt.show()
+        if plot:
+            plt.show()
 
     @staticmethod
     def calculate_system_metrics(

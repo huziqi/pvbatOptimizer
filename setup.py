@@ -9,9 +9,9 @@ setup(
         "numpy>=1.18.0",
         "gurobipy>=9.0.0",
     ],
-    author="Your Name",
-    author_email="your.email@example.com",
-    description="一个用于优化PV-储能系统容量的包",
+    author="huziqi",
+    author_email="ziqihu@outlook.com",
+    description="A package for optimizing PV-battery system capacity",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
 )
