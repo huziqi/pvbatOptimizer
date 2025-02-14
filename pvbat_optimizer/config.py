@@ -13,7 +13,7 @@ class OptimizerConfig:
     # Project parameters
     years: int = 25                # Project years
     discount_rate: float = 0.07    # Discount rate
-    electricity_sell_price_ratio: float = 0.6  # Electricity sell price ratio
+    electricity_sell_price_ratio: float = 0.7  # Electricity sell price ratio
     
     # Battery parameters
     soc_max: float = 0.9          # Maximum state of charge
@@ -26,7 +26,6 @@ class OptimizerConfig:
     max_battery_capacity: float = 100000  # Maximum battery capacity
     
     # Optional parameters
-    pv_degradation_rate: float = 0.005  # PV degradation rate
     battery_replacement_year: Optional[int] = 10  # Battery replacement year
     om_cost_ratio: float = 0.02  # O&M cost ratio
     
@@ -74,10 +73,6 @@ class OptimizerConfig:
             
         if not 0 <= self.self_discharge_rate < 1:
             raise ValueError("Self-discharge rate must be between 0 and 1")
-            
-        # Validate optional parameters
-        if not 0 <= self.pv_degradation_rate < 1:
-            raise ValueError("PV degradation rate must be between 0 and 1")
             
         if self.battery_replacement_year is not None and self.battery_replacement_year <= 0:
             raise ValueError("Battery replacement year must be positive")

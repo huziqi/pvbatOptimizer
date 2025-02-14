@@ -67,7 +67,7 @@ class PVBatOptimizer:
         
         # 批量添加约束
         model.addConstrs(
-            (pv_profile[t]*self.config.pv_degradation_rate + battery_discharge[t] - battery_charge[t] +
+            (pv_profile[t] * self.config.pv_capcity + battery_discharge[t] - battery_charge[t] +
              grid_import[t] - grid_export[t] >= load_profile[t]
              for t in range(T)),
             name="load_balance"

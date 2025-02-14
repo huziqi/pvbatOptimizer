@@ -41,25 +41,60 @@ class OptimizerUtils:
         plot: bool = False
     ):
         """绘制优化结果图表"""
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8))
+        fig, axs = plt.subplots(7, 1, figsize=(12, 12))
         
         # 功率平衡图
-        ax1.plot(load_profile.index, load_profile, label='Load', color='red')
-        ax1.plot(pv_profile.index, pv_profile, label='PV Generation', color='green')
-        ax1.plot(results['grid_import'], label='Grid Import', color='blue')
-        ax1.set_title('Power Balance')
-        ax1.set_xlabel('Time')
-        ax1.set_ylabel('Power (kW)')
-        ax1.legend()
-        ax1.grid(True)
+        axs[0].plot(load_profile.index, load_profile, label='Load', color='red')
+        axs[0].set_title('Power Balance')
+        axs[0].set_xlabel('Time')
+        axs[0].set_ylabel('Power (kW)')
+        axs[0].legend()
+        axs[0].grid(True)
+
+        #Pv出力图
+        axs[1].plot(pv_profile.index, pv_profile, label='PV Generation', color='green')
+        axs[1].set_title('PV Generation')
+        axs[1].set_xlabel('Time')
+        axs[1].set_ylabel('Power (kW)')
+        axs[1].legend()
+        axs[1].grid(True)
 
         # 电池运行状态图
-        ax2.plot(results['battery_energy'], label='Battery Energy', color='orange')
-        ax2.set_title('Battery State')
-        ax2.set_xlabel('Time')
-        ax2.set_ylabel('Energy (kWh)')
-        ax2.legend()
-        ax2.grid(True)
+        axs[2].plot(results['battery_energy'], label='Battery Energy', color='orange')
+        axs[2].set_title('Battery State')
+        axs[2].set_xlabel('Time')
+        axs[2].set_ylabel('Energy (kWh)')
+        axs[2].legend()
+        axs[2].grid(True)
+
+        # 其他可能的子图
+        axs[3].plot(results['grid_import'], label='Grid Import', color='blue')
+        axs[3].set_title('Grid Import')
+        axs[3].set_xlabel('Time')
+        axs[3].set_ylabel('Power (kW)')
+        axs[3].legend()
+        axs[3].grid(True)
+
+        axs[4].plot(results['grid_export'], label='Grid Export', color='purple')
+        axs[4].set_title('Grid Export')
+        axs[4].set_xlabel('Time')
+        axs[4].set_ylabel('Power (kW)')
+        axs[4].legend()
+        axs[4].grid(True)
+
+        axs[5].plot(results['battery_charge'], label='Battery Charge', color='yellow')
+        axs[5].set_title('Battery Charge/Discharge')
+        axs[5].set_xlabel('Time')
+        axs[5].set_ylabel('Power (kW)')
+        axs[5].legend()
+        axs[5].grid(True)
+
+        axs[6].plot(results['battery_discharge'], label='Battery Discharge', color='brown')
+        axs[6].set_title('Battery Charge/Discharge')
+        axs[6].set_xlabel('Time')
+        axs[6].set_ylabel('Power (kW)')
+        axs[6].legend()
+        axs[6].grid(True)
 
         plt.tight_layout()
         
@@ -67,6 +102,35 @@ class OptimizerUtils:
             plt.savefig(save_path, dpi=300, bbox_inches='tight')
         if plot:
             plt.show()
+
+    @staticmethod
+    def plot_sensitivity_results(results_df: pd.DataFrame):
+        
+        """Plot sensitivity analysis results for different battery costs"""
+        fig, axs = plt.subplots(len(sorted(results_df['battery_cost'].unique())), 1, figsize=(10, 6 * len(sorted(results_df['battery_cost'].unique()))))
+        
+        # Plot lines for each battery cost
+        for i, battery_cost in enumerate(sorted(results_df['battery_cost'].unique())):
+            df_cost = results_df[results_df['battery_cost'] == battery_cost]
+            axs[i].plot(df_cost['pv_capacity'], df_cost['battery_capacity'], 
+                        marker='o', linewidth=2, markersize=6, 
+                        label=f'Battery Cost: {battery_cost} CNY/kWh')
+            axs[i].set_title(f'Battery Cost: {battery_cost} CNY/kWh')
+            axs[i].set_xlabel('PV Capacity (kW)')
+            axs[i].set_ylabel('Optimal Battery Capacity (kWh)')
+            axs[i].grid(True, linestyle='--', alpha=0.7)
+            axs[i].legend()
+            
+            # Set actual data points as y-axis ticks
+            y_values = sorted(df_cost['battery_capacity'].unique())
+            axs[i].set_yticks(y_values)
+            
+            # Set x-axis ticks
+            axs[i].set_xticks(sorted(df_cost['pv_capacity'].unique()))
+        
+        plt.tight_layout()
+        plt.savefig('pv_battery_capacity_analysis.png', dpi=300, bbox_inches='tight')
+        plt.close()
 
     @staticmethod
     def calculate_system_metrics(
