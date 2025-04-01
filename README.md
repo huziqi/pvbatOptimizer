@@ -1,8 +1,4 @@
 # PV-Battery Optimizer
-
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/)
-
 ## Introduction
 
 PV-Battery Optimizer is a photovoltaic energy storage system optimization tool based on the Gurobi optimizer. It can calculate the optimal battery capacity configuration based on load profiles, photovoltaic output, and time-of-use electricity prices, achieving the minimization of the total system cost.
