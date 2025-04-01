@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 class OptimizerUtils:
     @staticmethod
     def calculate_crf(discount_rate: float, years: int) -> float:
-        """计算资本回收系数"""
+        """Calculate Capital Recovery Factor"""
         return (discount_rate * (1 + discount_rate)**years) / ((1 + discount_rate)**years - 1)
 
     @staticmethod
@@ -17,18 +17,18 @@ class OptimizerUtils:
         load_profile: pd.Series,
         pv_profile: pd.Series
     ) -> bool:
-        """验证输入数据的有效性"""
-        # 检查数据长度是否相同
+        """Validate the input data"""
+        # Check if the lengths of the data are the same
         if len(load_profile) != len(pv_profile):
-            raise ValueError("负荷曲线和PV出力曲线长度不一致")
+            raise ValueError("Load profile and PV generation profile lengths do not match")
         
-        # 检查是否有缺失值
+        # Check for missing values
         if load_profile.isnull().any() or pv_profile.isnull().any():
-            raise ValueError("输入数据存在缺失值")
+            raise ValueError("Input data contains missing values")
         
-        # 检查数据是否为负
+        # Check if data contains negative values
         if (load_profile < 0).any() or (pv_profile < 0).any():
-            raise ValueError("输入数据存在负值")
+            raise ValueError("Input data contains negative values")
         
         return True
 
@@ -40,10 +40,10 @@ class OptimizerUtils:
         save_path: str = None,
         plot: bool = False
     ):
-        """绘制优化结果图表"""
+        """Plot optimization results"""
         fig, axs = plt.subplots(7, 1, figsize=(12, 12))
         
-        # 功率平衡图
+        # Power balance plot
         axs[0].plot(load_profile.index, load_profile, label='Load', color='red')
         axs[0].set_title('Power Balance')
         axs[0].set_xlabel('Time')
@@ -51,7 +51,7 @@ class OptimizerUtils:
         axs[0].legend()
         axs[0].grid(True)
 
-        #Pv出力图
+        # PV generation plot
         axs[1].plot(pv_profile.index, pv_profile, label='PV Generation', color='green')
         axs[1].set_title('PV Generation')
         axs[1].set_xlabel('Time')
@@ -59,7 +59,7 @@ class OptimizerUtils:
         axs[1].legend()
         axs[1].grid(True)
 
-        # 电池运行状态图
+        # Battery state plot
         axs[2].plot(results['battery_energy'], label='Battery Energy', color='orange')
         axs[2].set_title('Battery State')
         axs[2].set_xlabel('Time')
@@ -67,7 +67,7 @@ class OptimizerUtils:
         axs[2].legend()
         axs[2].grid(True)
 
-        # 其他可能的子图
+        # Other possible subplots
         axs[3].plot(results['grid_import'], label='Grid Import', color='blue')
         axs[3].set_title('Grid Import')
         axs[3].set_xlabel('Time')
@@ -139,7 +139,7 @@ class OptimizerUtils:
         pv_profile: pd.Series,
         config: 'OptimizerConfig'
     ) -> Dict:
-        """计算系统性能指标"""
+        """Calculate system performance metrics"""
         total_load = load_profile.sum()
         total_pv_generation = pv_profile.sum()
         total_grid_import = sum(results['grid_import'])

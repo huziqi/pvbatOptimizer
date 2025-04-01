@@ -4,17 +4,17 @@ import time
 from datetime import datetime
 
 def run_basic_example():
-    # 加载示例数据
+    # Load example data
     df = pd.read_csv('/home/user/huziqi/pvbatOpt/examples/data.csv')
-    df['datetime'] = pd.to_datetime(df['datetime'])  # 将时间字符串转换为datetime格式
-    df = df.set_index('datetime')  # 设置datetime为索引
+    df['datetime'] = pd.to_datetime(df['datetime'])  # Convert time strings to datetime format
+    df = df.set_index('datetime')  # Set datetime as index
     
-    # 提取负载和光伏数据
-    load_profile = df['load_kW']  # 注意列名与CSV文件对应
-    pv_profile = df['PV_power_rate']  # 注意列名与CSV文件对应
+    # Extract load and PV data
+    load_profile = df['load_kW']  # Ensure column names match the CSV file
+    pv_profile = df['PV_power_rate']  # Ensure column names match the CSV file
     
-    # 创建配置
-    tou_prices = {  # 分时电价，根据实际情况设置
+    # Create configuration
+    tou_prices = {  # Time-of-use prices, set according to actual situation
         0: 0.152, 1: 0.143, 2: 0.137, 3: 0.137, 4: 0.145, 5: 0.172,
         6: 0.204, 7: 0.185, 8: 0.144, 9: 0.123, 10: 0.113, 11: 0.109,
         12: 0.110, 13: 0.116, 14: 0.127, 15: 0.148, 16: 0.181, 17: 0.244,
@@ -28,13 +28,13 @@ def run_basic_example():
         electricity_sell_price_ratio=0.99
     )
     
-    # 创建优化器
+    # Create optimizer
     optimizer = PVBatOptimizer(config)
     
-    # 运行优化
+    # Run optimization
     result = optimizer.optimize(load_profile, pv_profile)
     
-    # 计算系统指标
+    # Calculate system metrics
     metrics = OptimizerUtils.calculate_system_metrics(
         result,
         load_profile,
@@ -42,15 +42,15 @@ def run_basic_example():
         config
     )
     
-    # 打印结果
-    print("优化结果：")
-    print(f"最优电池容量: {result['battery_capacity']:.2f} kWh")
-    print(f"总成本: {result['total_cost']:.2f} 元")
-    # print("\n系统性能指标：")
+    # Print results
+    print("Optimization results:")
+    print(f"Optimal battery capacity: {result['battery_capacity']:.2f} kWh")
+    print(f"Total cost: {result['total_cost']:.2f} currency")
+    # print("\nSystem performance metrics:")
     # for metric, value in metrics.items():
     #     print(f"{metric}: {value:.2%}")
     
-    # 绘制结果
+    # Plot results
     OptimizerUtils.plot_optimization_results(
         result,
         load_profile,
@@ -59,11 +59,11 @@ def run_basic_example():
     )
 
 if __name__ == '__main__':
-    # 记录开始时间
+    # Record start time
     start_time = time.time()
-    print(f"\n优化开始时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"\nOptimization start time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     run_basic_example()
-    # 记录结束时间
+    # Record end time
     end_time = time.time()
-    print(f"\n优化结束时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"\n优化用时: {end_time - start_time:.2f} 秒")
+    print(f"\nOptimization end time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"\nOptimization duration: {end_time - start_time:.2f} seconds")
