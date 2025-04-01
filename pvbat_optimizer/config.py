@@ -39,7 +39,7 @@ class OptimizerConfig:
             raise ValueError("Prices must be non-negative")
             
         # Validate cost parameters
-        if self.pv_capcity <= 0:
+        if self.pv_capcity < 0:
             raise ValueError("PV capacity must be positive")
             
         if self.battery_cost_per_kwh <= 0:

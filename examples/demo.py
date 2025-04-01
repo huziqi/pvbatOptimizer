@@ -23,8 +23,9 @@ def run_basic_example():
     
     config = OptimizerConfig(
         tou_prices=tou_prices,
-        pv_capcity=500,
-        battery_cost_per_kwh=400
+        pv_capcity=0,
+        battery_cost_per_kwh=400,
+        electricity_sell_price_ratio=0.99
     )
     
     # 创建优化器
@@ -45,9 +46,9 @@ def run_basic_example():
     print("优化结果：")
     print(f"最优电池容量: {result['battery_capacity']:.2f} kWh")
     print(f"总成本: {result['total_cost']:.2f} 元")
-    print("\n系统性能指标：")
-    for metric, value in metrics.items():
-        print(f"{metric}: {value:.2%}")
+    # print("\n系统性能指标：")
+    # for metric, value in metrics.items():
+    #     print(f"{metric}: {value:.2%}")
     
     # 绘制结果
     OptimizerUtils.plot_optimization_results(
