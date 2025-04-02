@@ -27,7 +27,7 @@ def run_basic_example():
     
     config = OptimizerConfig(
         tou_prices=tou_prices,
-        pv_capcity=500,
+        pv_capacity=500,
         battery_cost_per_kwh=400
     )
     
@@ -59,7 +59,7 @@ def _run_single_optimization(battery_cost: float, pv_capacity: float,
     """Run single optimization case"""
     config = OptimizerConfig(
         tou_prices=tou_prices,
-        pv_capcity=pv_capacity,
+        pv_capacity=pv_capacity,
         battery_cost_per_kwh=battery_cost
     )
     

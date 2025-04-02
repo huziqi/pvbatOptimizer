@@ -42,7 +42,7 @@ df = df.set_index('datetime')
 # Create configuration
 config = OptimizerConfig(
     tou_prices={0: 0.152, 1: 0.143, ...},  # Time-of-use electricity prices
-    pv_capcity=500,                         # Photovoltaic capacity
+    pv_capacity=500,                         # Photovoltaic capacity
     battery_cost_per_kwh=400                # Battery unit cost
 )
 
@@ -59,7 +59,7 @@ print(f"Total cost: {result['total_cost']:.2f} yuan")
 
 ### Required Parameters
 - `tou_prices`: Time-of-use electricity prices (Dict[int, float])
-- `pv_capcity`: Photovoltaic installed capacity (float)
+- `pv_capacity`: Photovoltaic installed capacity (float)
 - `battery_cost_per_kwh`: Battery unit cost (float)
 
 ### Optional Parameters

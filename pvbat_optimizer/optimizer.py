@@ -59,7 +59,7 @@ class PVBatOptimizer:
         
         # Add constraints in bulk
         model.addConstrs(
-            (pv_profile[t] * self.config.pv_capcity + battery_discharge[t] - battery_charge[t] +
+            (pv_profile[t] * self.config.pv_capacity + battery_discharge[t] - battery_charge[t] +
              grid_import[t] - grid_export[t] >= load_profile[t]
              for t in range(T)),
             name="load_balance"
@@ -126,8 +126,9 @@ class PVBatOptimizer:
         # Construct objective function using LinExpr
         obj = self.config.battery_cost_per_kwh * battery_capacity * crf
         for t in range(T):
-            hour = load_profile.index[t].hour
-            price = self.config.tou_prices[hour]
+            timestamp = load_profile.index[t]
+            price = self.config.get_price_for_time(timestamp)
+            
             obj += grid_import[t] * price
             obj -= grid_export[t] * price * self.config.electricity_sell_price_ratio
         

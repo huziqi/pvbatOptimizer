@@ -17,7 +17,7 @@ class TestPVBatOptimizer(unittest.TestCase):
         }
         self.config = OptimizerConfig(
             tou_prices=self.tou_prices,
-            pv_capcity=500,
+            pv_capacity=500,
             battery_cost_per_kwh=400
         )
         
@@ -43,7 +43,7 @@ class TestPVBatOptimizer(unittest.TestCase):
         with self.assertRaises(ValueError):
             OptimizerConfig(
                 tou_prices={},
-                pv_capcity=500,
+                pv_capacity=500,
                 battery_cost_per_kwh=400
             )
         
@@ -51,7 +51,7 @@ class TestPVBatOptimizer(unittest.TestCase):
         with self.assertRaises(ValueError):
             OptimizerConfig(
                 tou_prices=self.tou_prices,
-                pv_capcity=-100,  # Negative value
+                pv_capacity=-100,  # Negative value
                 battery_cost_per_kwh=400
             )
         
@@ -59,13 +59,13 @@ class TestPVBatOptimizer(unittest.TestCase):
         with self.assertRaises(ValueError):
             OptimizerConfig(
                 tou_prices=self.tou_prices,
-                pv_capcity=500,
+                pv_capacity=500,
                 battery_cost_per_kwh=0  # Zero value
             )
         with self.assertRaises(ValueError):
             OptimizerConfig(
                 tou_prices=self.tou_prices,
-                pv_capcity=500,
+                pv_capacity=500,
                 battery_cost_per_kwh=-100  # Negative value
             )
     
@@ -80,7 +80,7 @@ class TestPVBatOptimizer(unittest.TestCase):
         
         config = OptimizerConfig(
                 tou_prices=self.constant_tou_prices,
-                pv_capcity=500,
+                pv_capacity=500,
                 battery_cost_per_kwh=400
             )
         optimizer = PVBatOptimizer(config)
@@ -110,7 +110,7 @@ class TestPVBatOptimizer(unittest.TestCase):
         # Test high battery cost case
         high_cost_config = OptimizerConfig(
             tou_prices=self.tou_prices,
-            pv_capcity=500,
+            pv_capacity=500,
             battery_cost_per_kwh=10000  # Very high battery cost
         )
         optimizer = PVBatOptimizer(high_cost_config)

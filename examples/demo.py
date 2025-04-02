@@ -5,7 +5,7 @@ from datetime import datetime
 
 def run_basic_example():
     # Load example data
-    df = pd.read_csv('/home/user/huziqi/pvbatOpt/examples/data.csv')
+    df = pd.read_csv('/home/user/huziqi/pvbatOpt/data/load_E13_hourly.csv')
     df['datetime'] = pd.to_datetime(df['datetime'])  # Convert time strings to datetime format
     df = df.set_index('datetime')  # Set datetime as index
     
@@ -23,9 +23,10 @@ def run_basic_example():
     
     config = OptimizerConfig(
         tou_prices=tou_prices,
-        pv_capcity=0,
-        battery_cost_per_kwh=400,
-        electricity_sell_price_ratio=0.99
+        pv_capacity=0,
+        battery_cost_per_kwh=890,
+        electricity_sell_price_ratio=0.6,
+        use_seasonal_prices=True
     )
     
     # Create optimizer
