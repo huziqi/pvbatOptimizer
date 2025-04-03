@@ -10,7 +10,8 @@ class OptimizerConfig:
     tou_prices: Dict[int, float] = None    # Original format of time-of-use prices {hour: price}
     
     # New price format (optional)
-    peak_price: Optional[float] = 1.20081     # Peak price
+    peak_price: Optional[float] = 1.44097     # Peak price
+    high_price: Optional[float] = 1.20081     # High price
     flat_price: Optional[float] = 0.76785     # Flat price
     valley_price: Optional[float] = 0.33489   # Valley price
     
@@ -43,10 +44,10 @@ class OptimizerConfig:
         """Validate configuration parameters"""
         # Check price format
         if self.use_seasonal_prices:
-            # When using seasonal prices, all three prices must be provided
-            if None in [self.peak_price, self.flat_price, self.valley_price]:
-                raise ValueError("When using seasonal prices, all three price tiers must be provided")
-            if not all(p > 0 for p in [self.peak_price, self.flat_price, self.valley_price] if p is not None):
+            # When using seasonal prices, all prices must be provided
+            if None in [self.peak_price, self.high_price, self.flat_price, self.valley_price]:
+                raise ValueError("When using seasonal prices, all price tiers must be provided")
+            if not all(p > 0 for p in [self.peak_price, self.high_price, self.flat_price, self.valley_price] if p is not None):
                 raise ValueError("All price values must be positive")
         else:
             # When using the original format, tou_prices must be provided
@@ -130,16 +131,14 @@ class OptimizerConfig:
         month = timestamp.month
         hour = timestamp.hour
         
-        # Determine if it's summer, winter, or other months
-        if month in [7, 8]:  # Summer months (July-August)
-            return self._get_summer_price(hour)
-        elif month in [1, 12]:  # Winter months (January, December)
-            return self._get_winter_price(hour)
+        # Determine price based on month
+        if month in [1, 7, 8, 9, 12]:  # January, July, August, September, December
+            return self._get_special_month_price(hour)
         else:  # Other months
-            return self._get_other_price(hour)
+            return self._get_regular_month_price(hour)
     
-    def _get_summer_price(self, hour: int) -> float:
-        """Get summer price
+    def _get_special_month_price(self, hour: int) -> float:
+        """Get price for January, July, August, September, December
         
         Args:
             hour: Hour (0-23)
@@ -147,34 +146,16 @@ class OptimizerConfig:
         Returns:
             Corresponding price for the time period
         """
-        if 20 <= hour <= 23:  # Peak: 20:00-24:00
+        if 18 <= hour < 22:  # Peak: 18:00-22:00
             return self.peak_price
-        elif 16 <= hour < 20:  # High: 16:00-20:00
-            return self.peak_price
-        elif hour == 0 or 6 <= hour < 12 or 15 <= hour < 16:  # Flat: 24:00-1:00, 6:00-12:00, 15:00-16:00
+        elif 11 <= hour < 14 or 22 <= hour < 23:  # High: 11:00-14:00, 22:00-23:00
+            return self.high_price
+        elif 7 <= hour < 11 or 14 <= hour < 18:  # Flat: 7:00-11:00, 14:00-18:00
             return self.flat_price
-        else:  # Valley: 1:00-6:00, 12:00-15:00
+        else:  # Valley: 23:00-next day 7:00 (i.e., 23:00-0:00, 0:00-7:00)
             return self.valley_price
     
-    def _get_winter_price(self, hour: int) -> float:
-        """Get winter price
-        
-        Args:
-            hour: Hour (0-23)
-            
-        Returns:
-            Corresponding price for the time period
-        """
-        if 18 <= hour < 21:  # Peak: 18:00-21:00
-            return self.peak_price
-        elif 15 <= hour < 18 or 21 <= hour < 23:  # High: 15:00-18:00, 21:00-23:00
-            return self.peak_price
-        elif 7 <= hour < 15:  # Flat: 7:00-15:00
-            return self.flat_price
-        else:  # Valley: 23:00-7:00
-            return self.valley_price
-    
-    def _get_other_price(self, hour: int) -> float:
+    def _get_regular_month_price(self, hour: int) -> float:
         """Get price for other months
         
         Args:
@@ -183,9 +164,11 @@ class OptimizerConfig:
         Returns:
             Corresponding price for the time period
         """
-        if 17 <= hour < 23:  # High: 17:00-23:00
-            return self.peak_price
-        elif 6 <= hour < 12 or 15 <= hour < 17 or hour == 23 or hour == 0:  # Flat: 6:00-12:00, 15:00-17:00, 23:00-0:00
+        if 18 <= hour < 23:  # High: 18:00-23:00
+            return self.high_price
+        elif 11 <= hour < 14:  # High: 11:00-14:00
+            return self.high_price
+        elif 7 <= hour < 11 or 14 <= hour < 18:  # Flat: 7:00-11:00, 14:00-18:00
             return self.flat_price
-        else:  # Valley: 0:00-6:00, 12:00-15:00
+        else:  # Valley: 23:00-next day 7:00 (i.e., 23:00-0:00, 0:00-7:00)
             return self.valley_price
