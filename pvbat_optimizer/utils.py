@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from typing import Dict, List, TYPE_CHECKING
+import os
+import matplotlib.dates as mdates
 
 if TYPE_CHECKING:
     from .config import OptimizerConfig
@@ -45,7 +47,7 @@ class OptimizerUtils:
         
         # Power balance plot
         axs[0].plot(load_profile.index, load_profile, label='Load', color='red')
-        axs[0].set_title('Power Balance')
+        axs[0].set_title('Building Load')
         axs[0].set_xlabel('Time')
         axs[0].set_ylabel('Power (kW)')
         axs[0].legend()
@@ -82,15 +84,15 @@ class OptimizerUtils:
         axs[4].legend()
         axs[4].grid(True)
 
-        axs[5].plot(results['battery_charge'], label='Battery Charge', color='yellow')
-        axs[5].set_title('Battery Charge/Discharge')
+        axs[5].plot(results['battery_charge'], label='Battery Charge', color='green')
+        axs[5].set_title('Battery Charge')
         axs[5].set_xlabel('Time')
         axs[5].set_ylabel('Power (kW)')
         axs[5].legend()
         axs[5].grid(True)
 
         axs[6].plot(results['battery_discharge'], label='Battery Discharge', color='brown')
-        axs[6].set_title('Battery Charge/Discharge')
+        axs[6].set_title('Battery Discharge')
         axs[6].set_xlabel('Time')
         axs[6].set_ylabel('Power (kW)')
         axs[6].legend()
@@ -154,3 +156,166 @@ class OptimizerUtils:
         }
         
         return metrics
+
+    @staticmethod
+    def plot_seasonal_comparison(
+        results: Dict,
+        load_profile: pd.Series,
+        pv_profile: pd.Series,
+        save_dir: str = 'seasonal_comparison',
+        plot: bool = False
+    ):
+        """
+        Plot comparison between March and August for each metric in separate figures
+        
+        Args:
+            results: Dictionary containing optimization results
+            load_profile: Series containing load data
+            pv_profile: Series containing PV generation data
+            save_dir: Directory to save the plots (default: 'seasonal_comparison')
+            plot: Whether to display the plots
+        """
+        # Create folder if it doesn't exist
+        if save_dir:
+            # Handle the case where save_dir is actually a file with extension
+            if '.' in os.path.basename(save_dir):
+                # Extract directory part
+                save_dir = os.path.dirname(save_dir)
+                # If empty, use current directory
+                if not save_dir:
+                    save_dir = 'seasonal_comparison'
+            
+            # Create directory if it doesn't exist
+            if not os.path.exists(save_dir):
+                os.makedirs(save_dir)
+        
+        # Filter data for March and August
+        march_filter = load_profile.index.month == 3
+        august_filter = load_profile.index.month == 8
+        
+        # Check if there is data for both months
+        if not any(march_filter) or not any(august_filter):
+            print("Warning: No data available for either March or August. Cannot create seasonal comparison.")
+            return
+        
+        # List of metrics to plot with their properties
+        metrics = [
+            {
+                'title': 'Building Load',
+                'data': load_profile,
+                'label': 'Load',
+                'color': 'red',
+                'ylabel': 'Power (kW)',
+                'filename': 'load_comparison.png'
+            },
+            {
+                'title': 'PV Generation',
+                'data': pv_profile,
+                'label': 'PV Generation',
+                'color': 'green',
+                'ylabel': 'Power (kW)',
+                'filename': 'pv_comparison.png'
+            },
+            {
+                'title': 'Battery State',
+                'data': results['battery_energy'],
+                'label': 'Battery Energy',
+                'color': 'orange',
+                'ylabel': 'Energy (kWh)',
+                'filename': 'battery_state_comparison.png'
+            },
+            {
+                'title': 'Grid Import',
+                'data': results['grid_import'],
+                'label': 'Grid Import',
+                'color': 'blue',
+                'ylabel': 'Power (kW)',
+                'filename': 'grid_import_comparison.png'
+            },
+            {
+                'title': 'Grid Export',
+                'data': results['grid_export'],
+                'label': 'Grid Export',
+                'color': 'purple',
+                'ylabel': 'Power (kW)',
+                'filename': 'grid_export_comparison.png'
+            },
+            {
+                'title': 'Battery Charge',
+                'data': results['battery_charge'],
+                'label': 'Battery Charge',
+                'color': 'green',
+                'ylabel': 'Power (kW)',
+                'filename': 'battery_charge_comparison.png'
+            },
+            {
+                'title': 'Battery Discharge',
+                'data': results['battery_discharge'],
+                'label': 'Battery Discharge',
+                'color': 'brown',
+                'ylabel': 'Power (kW)',
+                'filename': 'battery_discharge_comparison.png'
+            }
+        ]
+        
+        # Create and save each plot
+        for metric in metrics:
+            try:
+                # Create figure with 2 rows and 1 column
+                fig, axs = plt.subplots(2, 1, figsize=(12, 10))
+                
+                # Plot for March
+                march_data = metric['data'][march_filter]
+                if not march_data.empty:
+                    axs[0].plot(march_data.index, march_data, label=metric['label'], color=metric['color'])
+                    axs[0].set_title(f"March - {metric['title']}")
+                    axs[0].set_xlabel('Time')
+                    axs[0].set_ylabel(metric['ylabel'])
+                    axs[0].legend()
+                    axs[0].grid(True)
+                    
+                    # Format x-axis for better readability - 每隔2天显示一个日期
+                    axs[0].xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
+                    axs[0].xaxis.set_major_locator(mdates.DayLocator(interval=2))
+                else:
+                    axs[0].text(0.5, 0.5, 'No data available for March', 
+                              horizontalalignment='center', verticalalignment='center',
+                              transform=axs[0].transAxes)
+                
+                # Plot for August
+                august_data = metric['data'][august_filter]
+                if not august_data.empty:
+                    axs[1].plot(august_data.index, august_data, label=metric['label'], color=metric['color'])
+                    axs[1].set_title(f"August - {metric['title']}")
+                    axs[1].set_xlabel('Time')
+                    axs[1].set_ylabel(metric['ylabel'])
+                    axs[1].legend()
+                    axs[1].grid(True)
+                    
+                    # Format x-axis for better readability - 每隔2天显示一个日期
+                    axs[1].xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
+                    axs[1].xaxis.set_major_locator(mdates.DayLocator(interval=2))
+                else:
+                    axs[1].text(0.5, 0.5, 'No data available for August', 
+                              horizontalalignment='center', verticalalignment='center',
+                              transform=axs[1].transAxes)
+                
+                # Add main title
+                fig.suptitle(f"{metric['title']}: March vs August Comparison", fontsize=16)
+                
+                plt.tight_layout(rect=[0, 0, 1, 0.95])  # Adjust layout to make room for suptitle
+                
+                # Save figure if directory is provided
+                if save_dir:
+                    save_path = os.path.join(save_dir, metric['filename'])
+                    plt.savefig(save_path, dpi=300, bbox_inches='tight')
+                    print(f"Saved {metric['title']} comparison to {save_path}")
+                
+                # Show plot if requested
+                if plot:
+                    plt.show()
+                else:
+                    plt.close(fig)
+                
+            except Exception as e:
+                print(f"Error creating {metric['title']} comparison plot: {e}")

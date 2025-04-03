@@ -24,12 +24,12 @@ class OptimizerConfig:
     electricity_sell_price_ratio: float = 0.7  # Electricity sell price ratio
     
     # Battery parameters
-    soc_max: float = 0.9          # Maximum state of charge
+    soc_max: float = 0.8          # Maximum state of charge
     soc_min: float = 0.2          # Minimum state of charge
-    charge_power_capacity: float = 0.25    # Maximum charge power to capacity ratio
-    discharge_power_capacity: float = 0.25  # Maximum discharge power to capacity ratio
-    battery_charge_efficiency: float = 0.95    # Battery charge efficiency
-    battery_discharge_efficiency: float = 0.95  # Battery discharge efficiency
+    charge_power_capacity: float = 0.5    # Maximum charge power to capacity ratio
+    discharge_power_capacity: float = 0.5  # Maximum discharge power to capacity ratio
+    battery_charge_efficiency: float = 0.9    # Battery charge efficiency
+    battery_discharge_efficiency: float = 0.9  # Battery discharge efficiency
     self_discharge_rate: float = 0.000002  # Self-discharge rate per time step
     max_battery_capacity: float = 100000  # Maximum battery capacity
     

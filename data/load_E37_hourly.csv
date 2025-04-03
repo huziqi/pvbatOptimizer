@@ -1,4 +1,4 @@
-datetime,load,PV_power_rate
+datetime,load_kW,PV_power_rate
 2024-01-01 00:00:00,979.2,0
 2024-01-01 01:00:00,990.0,0
 2024-01-01 02:00:00,950.4,0

@@ -22,7 +22,6 @@ def run_basic_example():
     }
     
     config = OptimizerConfig(
-        tou_prices=tou_prices,
         pv_capacity=0,
         battery_cost_per_kwh=890,
         electricity_sell_price_ratio=0.6,
@@ -52,11 +51,11 @@ def run_basic_example():
     #     print(f"{metric}: {value:.2%}")
     
     # Plot results
-    OptimizerUtils.plot_optimization_results(
+    OptimizerUtils.plot_seasonal_comparison(
         result,
         load_profile,
         pv_profile,
-        save_path='optimization_results.png'
+        save_dir='optimization_results.png'
     )
 
 if __name__ == '__main__':
