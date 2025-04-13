@@ -37,6 +37,10 @@ class OptimizerConfig:
     battery_replacement_year: Optional[int] = 10  # Battery replacement year
     om_cost_ratio: float = 0.02  # O&M cost ratio
     
+    # Demand charge parameters
+    demand_charge_rate: float = 0.0  # Demand charge rate ($/kW)
+    billing_period: str = 'monthly'  # Billing period for demand charge ('monthly', 'daily', etc.)
+    
     # Set whether to use seasonal prices
     use_seasonal_prices: bool = False  # Default to using original tou_prices format
     

@@ -13,6 +13,30 @@ class OptimizerUtils:
     def calculate_crf(discount_rate: float, years: int) -> float:
         """Calculate Capital Recovery Factor"""
         return (discount_rate * (1 + discount_rate)**years) / ((1 + discount_rate)**years - 1)
+        
+    @staticmethod
+    def calculate_demand_charges(peak_demand: Dict, demand_charge_rate: float) -> Dict:
+        """Calculate demand charges for each billing period
+        
+        Args:
+            peak_demand: Dictionary mapping period IDs to peak demand values
+            demand_charge_rate: Demand charge rate ($/kW)
+            
+        Returns:
+            Dictionary mapping period IDs to demand charge costs
+        """
+        demand_charges = {}
+        total_demand_charge = 0
+        
+        for period_id, peak in peak_demand.items():
+            charge = peak * demand_charge_rate
+            demand_charges[period_id] = charge
+            total_demand_charge += charge
+            
+        return {
+            "by_period": demand_charges,
+            "total": total_demand_charge
+        }
 
     @staticmethod
     def validate_input_data(

@@ -25,7 +25,10 @@ def run_basic_example():
         pv_capacity=0,
         battery_cost_per_kwh=890,
         electricity_sell_price_ratio=0.6,
-        use_seasonal_prices=True
+        use_seasonal_prices=True,
+        years=6,
+        discount_rate=0.08752,
+        demand_charge_rate=33.8
     )
     
     # Create optimizer
