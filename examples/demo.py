@@ -1,5 +1,5 @@
 import pandas as pd
-from pvbat_optimizer import PVBatOptimizer, OptimizerConfig, OptimizerUtils
+from pvbat_optimizer import PVBatOptimizer_linearProg, OptimizerConfig, OptimizerUtils
 import time
 from datetime import datetime
 
@@ -32,7 +32,7 @@ def run_basic_example():
     )
     
     # Create optimizer
-    optimizer = PVBatOptimizer(config)
+    optimizer = PVBatOptimizer_linearProg(config)
     
     # Run optimization
     result = optimizer.optimize(load_profile, pv_profile)

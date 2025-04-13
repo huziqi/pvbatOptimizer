@@ -6,12 +6,13 @@ from .utils import OptimizerUtils
 from gurobipy import GRB
 import numpy as np
 from datetime import datetime
+from .PVBatOptimizer import PVBatOptimizer
 
 class OptimizationError(Exception):
     """Custom exception for optimization failure"""
     pass
 
-class PVBatOptimizer:
+class PVBatOptimizer_linearProg(PVBatOptimizer):
     def __init__(self, config: OptimizerConfig):
         self.config = config
         
@@ -194,7 +195,6 @@ class PVBatOptimizer:
         model.setObjective(obj, gp.GRB.MINIMIZE)
         
         return model
-
     def _extract_results(self, model: gp.Model, time_index: pd.DatetimeIndex) -> Dict:
         """Extract optimization results"""
         # Check if the model was solved successfully

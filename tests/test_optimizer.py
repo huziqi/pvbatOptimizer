@@ -1,7 +1,7 @@
 import unittest
 import pandas as pd
 import numpy as np
-from pvbat_optimizer.optimizer import PVBatOptimizer
+from pvbat_optimizer.PVBatOptimizer_linearProg import PVBatOptimizer
 from pvbat_optimizer.config import OptimizerConfig
 
 class TestPVBatOptimizer(unittest.TestCase):
