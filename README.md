@@ -3,14 +3,6 @@
 
 PV-Battery Optimizer is a photovoltaic energy storage system optimization tool based on the Gurobi optimizer. It can calculate the optimal battery capacity configuration based on load profiles, photovoltaic output, and time-of-use electricity prices, achieving the minimization of the total system cost.
 
-## Features
-
-- Supports time-of-use electricity price optimization
-- Considers battery charging and discharging efficiency and self-discharge
-- Supports parallel computing for sensitivity analysis
-- Calculates detailed system performance metrics
-- Visualizes optimization results and sensitivity analysis
-
 ## Dependencies
 
 - Python >= 3.8
@@ -20,6 +12,8 @@ PV-Battery Optimizer is a photovoltaic energy storage system optimization tool b
 - gurobipy
 - multiprocessing
 
+
+
 ## Installation
 ```bash
 git clone https://github.com/yourusername/pvbat-optimizer.git
@@ -28,38 +22,65 @@ pip install -e .
 ```
 
 ## Usage
+### Project Structure
 
+```
+├── pvbat_optimizer/
+│   ├── __init__.py
+│   ├── PVBatOptimizer.py
+│   ├── PVBatOptimizer_linearProg.py
+│   ├── config.py
+│   └── utils.py
+├── examples/
+│   ├── data.csv
+│   ├── demo.py
+├── tests/
+│   ├── __init__.py
+│   └── test_optimizer.py
+├── utils/
+├── LICENSE
+├── README.md
+└── setup.py
+```
 ### Basic Optimization Example
 
 ```python
 from pvbat_optimizer import PVBatOptimizer, OptimizerConfig
 
 # Load data
-df = pd.read_csv('data.csv')
-df['datetime'] = pd.to_datetime(df['datetime'])
-df = df.set_index('datetime')
-
-# Create configuration
-config = OptimizerConfig(
-    tou_prices={0: 0.152, 1: 0.143, ...},  # Time-of-use electricity prices
-    pv_capacity=500,                         # Photovoltaic capacity
-    battery_cost_per_kwh=400                # Battery unit cost
-)
-
-# Run optimization
-optimizer = PVBatOptimizer(config)
-result = optimizer.optimize(df['load_kW'], df['PV_power_rate'])
-
-# Output results
-print(f"Optimal battery capacity: {result['battery_capacity']:.2f} kWh")
-print(f"Total cost: {result['total_cost']:.2f} yuan")
+net_load=OptimizerUtils.net_profiles("builing_load.csv","PV_generation.csv")
+    
+    config = OptimizerConfig(
+        battery_cost_per_kwh=890,
+        electricity_sell_price_ratio=0.6,
+        use_seasonal_prices=True,
+        years=10,
+        discount_rate=0.10,
+        demand_charge_rate=33.8
+    )
+    
+    # Create optimizer
+    optimizer = PVBatOptimizer_linearProg(config)
+    
+    # Run optimization
+    result = optimizer.optimize(net_load)
 ```
 
+### Data Format
+The data should be in a CSV file with the following columns:
+- `datetime`: Date and time (datetime)
+- `load`: load for buildings (float)
+```
+datetime,building_load
+2022-01-01 00:00:00,1000
+2022-01-01 01:00:00,1050
+```
+If PV genertation data is available, it should also have the same format.
 ## Configuration Parameters
 
 ### Required Parameters
 - `tou_prices`: Time-of-use electricity prices (Dict[int, float])
-- `pv_capacity`: Photovoltaic installed capacity (float)
+- `net_load`: Net load for buildings (float)
 - `battery_cost_per_kwh`: Battery unit cost (float)
 
 ### Optional Parameters
@@ -73,14 +94,40 @@ print(f"Total cost: {result['total_cost']:.2f} yuan")
 - `battery_charge_efficiency`: Charging efficiency (default: 0.95)
 - `battery_discharge_efficiency`: Discharging efficiency (default: 0.95)
 
-## System Metrics
+## Software Scalability	
+The optimization part can be implemented using different optimization algorithms. The current implementation uses the Gurobi optimizer. However, it can be easily extended to other optimization algorithms.
+### Implement guidance
+The base class `PVBatOptimizer` is an abstract class that defines the interface for the optimization algorithms. The methods `optimize` has to be implemented by the user.
+```python
+@abstractmethod
+def optimize(self, net_load: pd.Series) -> Dict:
+"""
+Performs optimization to determine optimal battery capacity and operation strategy.
 
-- Self-consumption rate
-- Self-sufficiency rate
-- Battery cycle times
-- Levelized cost of electricity (LCOE)
-- Photovoltaic utilization rate
+Parameters
+----------
+net_load : pd.Series
+    The net load profile (load minus PV generation) time series data with shape of (n,2) and n is the number of time steps.
+    The first column is the time index and the second column is the net load profile with time resolution of 1 hour.
+    A pandas Series with DatetimeIndex is used for time series data.
 
+Returns
+-------
+results : Dict
+    A dictionary containing optimization results including:
+    - battery_capacity: Optimal battery capacity in kWh
+    - operation_strategy: Optimal battery operation strategy time series
+
+Instructions
+------------
+Implement the optimization logic to minimize electricity costs by:
+1. Determining optimal battery capacity
+2. Determining optimal battery operation strategy
+
+The specific optimization method depends on the implementing class.
+"""
+pass        
+```
 ## Development
 
 ### Running Tests
@@ -91,9 +138,3 @@ python -m unittest tests/test_optimizer.py
 ## License
 
 This project is licensed under the MIT License. Please refer to the [LICENSE](LICENSE) file for details.
-
-## Todo:
-- [ ] 检查电池容量变化不明显可能是由于以下原因：
-1. **优化目标**：如果优化目标主要是最小化成本，电池容量可能不会显著变化，除非 PV 容量对成本有很大影响。
-2. 约束条件：电池容量可能受到其他约束的限制，比如最大充放电功率、SOC 限制等。
-3. PV 影响：PV 容量的变化可能对系统的整体影响较小，特别是在电网价格和电池成本主导的情况下。

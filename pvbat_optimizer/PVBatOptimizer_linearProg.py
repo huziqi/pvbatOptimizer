@@ -1,3 +1,4 @@
+from operator import ne
 import pandas as pd
 import gurobipy as gp
 from typing import Dict, Tuple, List
@@ -6,12 +7,13 @@ from .utils import OptimizerUtils
 from gurobipy import GRB
 import numpy as np
 from datetime import datetime
+from .PVBatOptimizer import PVBatOptimizer
 
 class OptimizationError(Exception):
     """Custom exception for optimization failure"""
     pass
 
-class PVBatOptimizer:
+class PVBatOptimizer_linearProg(PVBatOptimizer):
     def __init__(self, config: OptimizerConfig):
         self.config = config
         
@@ -69,33 +71,31 @@ class PVBatOptimizer:
 
     def optimize(
         self,
-        load_profile: pd.Series,    # Load profile
-        pv_profile: pd.Series,      # PV generation profile  
-        battery_capacity_range: Tuple[float, float] = (0, 100000) # Max battery capacity set by user
+        net_load: pd.Series
     ) -> Dict:
         """Optimize battery capacity"""
-        model = self._create_model(load_profile, pv_profile, battery_capacity_range)
+        model = self._create_model(net_load)
         model.optimize()
         
         # Return results directly; if optimization fails, an exception will be raised in _extract_results
-        return self._extract_results(model, load_profile.index)
+        return self._extract_results(model, net_load.index)
 
-    def _create_model(self, load_profile: pd.Series, pv_profile: pd.Series, 
-                     battery_capacity_range: Tuple[float, float]) -> gp.Model:
+    def _create_model(self, net_load: pd.Series) -> gp.Model:
         """Create optimization model"""
-        model = gp.Model("PV_Battery_Optimization")
+        model = gp.Model("LP_Model")
         
         # Set Gurobi optimization parameters
         model.setParam('OutputFlag', 0)  # Disable output to reduce IO overhead
         model.setParam('Method', 3)  # Use barrier method
+        # model.setParam("NonConvex", 0)  # Force linear algorithm (disable quadratic/nonlinear terms)
             
-        T = len(load_profile)
+        T = len(net_load)
         
         # Decision variables
         battery_capacity = model.addVar(
             name="battery_capacity",
-            lb=battery_capacity_range[0],
-            ub=battery_capacity_range[1]
+            lb=0,
+            ub=self.config.max_battery_capacity
         )
         
         # Create variables in bulk
@@ -106,7 +106,7 @@ class PVBatOptimizer:
         grid_export = model.addVars(T, name="grid_export", lb=0)
         
         # Get billing periods for demand charge
-        billing_periods = self._get_billing_periods(load_profile.index)
+        billing_periods = self._get_billing_periods(net_load.index)
         
         # Add demand charge variables
         peak_demand = {}
@@ -116,8 +116,7 @@ class PVBatOptimizer:
         
         # Add constraints in bulk
         model.addConstrs(
-            (pv_profile[t] * self.config.pv_capacity + battery_discharge[t] - battery_charge[t] +
-             grid_import[t] - grid_export[t] >= load_profile[t]
+            (battery_discharge[t] - battery_charge[t] + grid_import[t] - grid_export[t] >= net_load[t]
              for t in range(T)),
             name="load_balance"
         )
@@ -180,7 +179,7 @@ class PVBatOptimizer:
         
         # Energy cost
         for t in range(T):
-            timestamp = load_profile.index[t]
+            timestamp = net_load.index[t]
             price = self.config.get_price_for_time(timestamp)
             
             obj += grid_import[t] * price
@@ -194,7 +193,6 @@ class PVBatOptimizer:
         model.setObjective(obj, gp.GRB.MINIMIZE)
         
         return model
-
     def _extract_results(self, model: gp.Model, time_index: pd.DatetimeIndex) -> Dict:
         """Extract optimization results"""
         # Check if the model was solved successfully

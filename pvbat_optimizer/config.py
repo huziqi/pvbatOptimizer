@@ -7,7 +7,15 @@ class OptimizerConfig:
     """PV-Battery system optimization configuration"""
     
     # Required economic parameters
-    tou_prices: Dict[int, float] = None    # Original format of time-of-use prices {hour: price}
+    tou_prices: Dict[int, float] = None    # Original format of time-of-use prices {hour: price} 
+    """ For an example:
+    tou_prices = {  # Time-of-use prices, refer to UCSD data
+        0: 0.152, 1: 0.143, 2: 0.137, 3: 0.137, 4: 0.145, 5: 0.172,
+        6: 0.204, 7: 0.185, 8: 0.144, 9: 0.123, 10: 0.113, 11: 0.109,
+        12: 0.110, 13: 0.116, 14: 0.127, 15: 0.148, 16: 0.181, 17: 0.244,
+        18: 0.279, 19: 0.294, 20: 0.249, 21: 0.213, 22: 0.181, 23: 0.163
+    }
+    """
     
     # New price format (optional)
     peak_price: Optional[float] = 1.44097     # Peak price
@@ -16,7 +24,7 @@ class OptimizerConfig:
     valley_price: Optional[float] = 0.33489   # Valley price
     
     pv_capacity: float = 0          # Installed PV capacity
-    battery_cost_per_kwh: float = 0    # Battery cost per kWh
+    battery_cost_per_kwh: float = 0    # Battery cost per CNY/kWh
     
     # Project parameters
     years: int = 25                # Project years
@@ -26,8 +34,8 @@ class OptimizerConfig:
     # Battery parameters
     soc_max: float = 0.8          # Maximum state of charge
     soc_min: float = 0.2          # Minimum state of charge
-    charge_power_capacity: float = 0.5    # Maximum charge power to capacity ratio
-    discharge_power_capacity: float = 0.5  # Maximum discharge power to capacity ratio
+    charge_power_capacity: float = 0.25    # Maximum charge power to capacity ratio
+    discharge_power_capacity: float = 0.25  # Maximum discharge power to capacity ratio
     battery_charge_efficiency: float = 0.9    # Battery charge efficiency
     battery_discharge_efficiency: float = 0.9  # Battery discharge efficiency
     self_discharge_rate: float = 0.000002  # Self-discharge rate per time step
@@ -38,7 +46,7 @@ class OptimizerConfig:
     om_cost_ratio: float = 0.02  # O&M cost ratio
     
     # Demand charge parameters
-    demand_charge_rate: float = 0.0  # Demand charge rate ($/kW)
+    demand_charge_rate: float = 0.0  # Demand charge rate (CNY/kW)
     billing_period: str = 'monthly'  # Billing period for demand charge ('monthly', 'daily', etc.)
     
     # Set whether to use seasonal prices
