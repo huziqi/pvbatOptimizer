@@ -26,19 +26,32 @@ class PVBatOptimizer(ABC):
     @abstractmethod
     def optimize(
         self,
-        load_profile: pd.Series,
-        pv_profile: pd.Series,
-        battery_capacity_range: Tuple[float, float] = (0, 100000)
+        net_load: pd.Series
     ) -> Dict:
-        """Optimize battery capacity and operation.
+        """
+        Performs optimization to determine optimal battery capacity and operation strategy.
         
-        Args:
-            load_profile: Load profile time series
-            pv_profile: PV generation profile time series
-            battery_capacity_range: Tuple of (min, max) battery capacity in kWh
-            
-        Returns:
-            Dictionary containing optimization results
+        Parameters
+        ----------
+        net_load : pd.Series
+            The net load profile (load minus PV generation) time series data with shape of (n,2) and n is the number of time steps.
+            The first column is the time index and the second column is the net load profile with time resolution of 1 hour.
+            A pandas Series with DatetimeIndex is used for time series data.
+        
+        Returns
+        -------
+        results : Dict
+            A dictionary containing optimization results including:
+            - battery_capacity: Optimal battery capacity in kWh
+            - operation_strategy: Optimal battery operation strategy time series
+
+        Instructions
+        ------------
+        Implement the optimization logic to minimize electricity costs by:
+        1. Determining optimal battery capacity
+        2. Determining optimal battery operation strategy
+        
+        The specific optimization method depends on the implementing class.
         """
         pass
     

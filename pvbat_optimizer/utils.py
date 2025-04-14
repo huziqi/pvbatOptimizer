@@ -161,23 +161,19 @@ class OptimizerUtils:
     @staticmethod
     def calculate_system_metrics(
         results: Dict,
-        load_profile: pd.Series,
-        pv_profile: pd.Series,
+        net_load: pd.Series,
         config: 'OptimizerConfig'
     ) -> Dict:
         """Calculate system performance metrics"""
-        total_load = load_profile.sum()
-        total_pv_generation = pv_profile.sum()
+        total_load = net_load.sum()
         total_grid_import = sum(results['grid_import'])
         total_grid_export = sum(results['grid_export'])
         
         metrics = {
-            "self_consumption_rate": (total_pv_generation - total_grid_export) / total_pv_generation,
             "self_sufficiency_rate": (total_load - total_grid_import) / total_load,
             "battery_cycles": sum(results['battery_charge']) / results['battery_capacity'],
-            "lcoe": results['total_cost'] / (total_load - total_grid_import),
-            "pv_utilization_rate": (total_pv_generation - total_grid_export) / total_pv_generation
-        }
+            "lcoe": results['total_cost'] / (total_load - total_grid_import)       
+            }
         
         return metrics
 
@@ -185,7 +181,6 @@ class OptimizerUtils:
     def plot_seasonal_comparison(
         results: Dict,
         load_profile: pd.Series,
-        pv_profile: pd.Series,
         save_dir: str = 'seasonal_comparison',
         plot: bool = False
     ):
@@ -231,14 +226,6 @@ class OptimizerUtils:
                 'color': 'red',
                 'ylabel': 'Power (kW)',
                 'filename': 'load_comparison.png'
-            },
-            {
-                'title': 'PV Generation',
-                'data': pv_profile,
-                'label': 'PV Generation',
-                'color': 'green',
-                'ylabel': 'Power (kW)',
-                'filename': 'pv_comparison.png'
             },
             {
                 'title': 'Battery State',
@@ -343,3 +330,49 @@ class OptimizerUtils:
                 
             except Exception as e:
                 print(f"Error creating {metric['title']} comparison plot: {e}")
+
+    @staticmethod
+    def net_profiles(load_profile_path: str, pv_profile_path: str = None) -> pd.Series:
+        """Load load profile and PV profile from CSV files and calculate net load
+        
+        Args:
+            load_profile_path: Path to the load profile CSV file
+            pv_profile_path: Path to the PV profile CSV file, if None, assumes no PV generation
+            
+        Returns:
+            pd.Series: Net load profile (load - pv) with datetime index
+        """
+        # Read load profile CSV file
+        try:
+            load_profile = pd.read_csv(load_profile_path, index_col=0, parse_dates=True)
+            if not isinstance(load_profile.index, pd.DatetimeIndex):
+                raise ValueError("Load profile must have datetime index")
+        except Exception as e:
+            raise ValueError(f"Error reading load profile: {str(e)}")
+            
+        # Handle PV profile
+        if pv_profile_path is None:
+            pv_profile = pd.Series(0, index=load_profile.index)
+        else:
+            try:
+                pv_profile = pd.read_csv(pv_profile_path, index_col=0, parse_dates=True)
+                if not isinstance(pv_profile.index, pd.DatetimeIndex):
+                    raise ValueError("PV profile must have datetime index")
+            except Exception as e:
+                raise ValueError(f"Error reading PV profile: {str(e)}")
+        
+        # Convert to Series if DataFrame
+        if isinstance(load_profile, pd.DataFrame):
+            if load_profile.shape[1] > 1:
+                print("Warning: Multiple columns in load profile, using first column")
+            load_profile = load_profile.iloc[:, 0]
+        if isinstance(pv_profile, pd.DataFrame):
+            if pv_profile.shape[1] > 1:
+                print("Warning: Multiple columns in PV profile, using first column")
+            pv_profile = pv_profile.iloc[:, 0]
+        
+        # Validate input data
+        OptimizerUtils.validate_input_data(load_profile, pv_profile)
+        
+        # Calculate net load (positive means import from grid, negative means export to grid)
+        return load_profile - pv_profile
