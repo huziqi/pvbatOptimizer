@@ -162,7 +162,6 @@ class OptimizerUtils:
     def calculate_system_metrics(
         results: Dict,
         net_load: pd.Series,
-        config: 'OptimizerConfig'
     ) -> Dict:
         """Calculate system performance metrics"""
         total_load = net_load.sum()
@@ -172,7 +171,9 @@ class OptimizerUtils:
         metrics = {
             "self_sufficiency_rate": (total_load - total_grid_import) / total_load,
             "battery_cycles": sum(results['battery_charge']) / results['battery_capacity'],
-            "lcoe": results['total_cost'] / (total_load - total_grid_import)       
+            "lcoe": results['total_cost'] / (total_load - total_grid_import),
+            "Total grid export": f"{total_grid_export} kWh",
+            "Total grid import": f"{total_grid_import} kWh"       
             }
         
         return metrics
@@ -330,6 +331,31 @@ class OptimizerUtils:
                 
             except Exception as e:
                 print(f"Error creating {metric['title']} comparison plot: {e}")
+    
+    @staticmethod
+    def plot_single_fig(plt_profile: pd.Series, xaxis, yaxis, output_path: str = None):
+        """
+        Plot a single figure with a single subplot for the given profile data.
+
+        Args:
+            plt_profile: Series containing the profile data to be plotted.
+        """
+
+        try:
+            # Create a figure and a single subplot
+            fig, ax = plt.subplots(figsize=(10, 6))
+            # Plot the profile data
+            ax.plot(plt_profile.index, plt_profile, label='Profile', color='blue')
+            # Set the title and labels
+            ax.set_xlabel(xaxis)
+            ax.set_ylabel(yaxis)
+            # Add a legend
+            ax.legend()
+            plt.savefig(output_path, dpi=300, bbox_inches='tight')
+        except Exception as e:
+            print(f"Error creating profile plot: {e}")
+
+
 
     @staticmethod
     def net_profiles(load_profile_path: str, pv_profile_path: str = None) -> pd.Series:

@@ -1,8 +1,11 @@
+from math import inf
 import unittest
 import pandas as pd
 import numpy as np
-from pvbat_optimizer.PVBatOptimizer_linearProg import PVBatOptimizer
+from pvbat_optimizer.PVBatOptimizer_linearProg import PVBatOptimizer_linearProg
 from pvbat_optimizer.config import OptimizerConfig
+from pvbat_optimizer.utils import OptimizerUtils
+import sys
 
 class TestPVBatOptimizer(unittest.TestCase):
     def setUp(self):
@@ -17,7 +20,6 @@ class TestPVBatOptimizer(unittest.TestCase):
         }
         self.config = OptimizerConfig(
             tou_prices=self.tou_prices,
-            pv_capacity=500,
             battery_cost_per_kwh=400
         )
         
@@ -43,15 +45,6 @@ class TestPVBatOptimizer(unittest.TestCase):
         with self.assertRaises(ValueError):
             OptimizerConfig(
                 tou_prices={},
-                pv_capacity=500,
-                battery_cost_per_kwh=400
-            )
-        
-        # Test invalid PV capacity
-        with self.assertRaises(ValueError):
-            OptimizerConfig(
-                tou_prices=self.tou_prices,
-                pv_capacity=-100,  # Negative value
                 battery_cost_per_kwh=400
             )
         
@@ -59,63 +52,58 @@ class TestPVBatOptimizer(unittest.TestCase):
         with self.assertRaises(ValueError):
             OptimizerConfig(
                 tou_prices=self.tou_prices,
-                pv_capacity=500,
                 battery_cost_per_kwh=0  # Zero value
             )
+        
+        # Test negative battery cost
         with self.assertRaises(ValueError):
             OptimizerConfig(
                 tou_prices=self.tou_prices,
-                pv_capacity=500,
                 battery_cost_per_kwh=-100  # Negative value
             )
     
     def test_tou_prices_validation(self):
         """Test input data validation"""
-        df = pd.read_csv('examples/data.csv')
-        df['datetime'] = pd.to_datetime(df['datetime'])
-        df = df.set_index('datetime')
-        
-        load_profile = df['load_kW']
-        pv_profile = df['PV_power_rate']
+        net_load=OptimizerUtils.net_profiles("data/load_E13_hourly.csv",None)
         
         config = OptimizerConfig(
                 tou_prices=self.constant_tou_prices,
-                pv_capacity=500,
                 battery_cost_per_kwh=400
             )
-        optimizer = PVBatOptimizer(config)
-        result = optimizer.optimize(load_profile, pv_profile)
+        optimizer = PVBatOptimizer_linearProg(config)
+        result = optimizer.optimize(net_load)
         self.assertEqual(result['battery_capacity'], 0)
     
     def test_extreme_cases(self):
         """Test extreme cases"""
-        df = pd.read_csv('examples/data.csv')
-        df['datetime'] = pd.to_datetime(df['datetime'])
-        df = df.set_index('datetime')
-        
-        load_profile = df['load_kW']
-        pv_profile = df['PV_power_rate']
-        optimizer = PVBatOptimizer(self.config)
+        net_load=OptimizerUtils.net_profiles("data/load_E13_hourly.csv",None)
+        optimizer = PVBatOptimizer_linearProg(self.config)
         
         # Test zero load case
-        zero_load = pd.Series(np.zeros(len(load_profile)), index=load_profile.index)
-        result = optimizer.optimize(zero_load, pv_profile)
+        zero_load = pd.Series(np.zeros(len(net_load)), index=net_load.index)
+        result = optimizer.optimize(zero_load)
         self.assertAlmostEqual(result['battery_capacity'], 0, places=2)
-        
-        # Test zero PV case
-        # zero_pv = pd.Series(np.zeros(len(pv_profile)), index=pv_profile.index)
-        # result = optimizer.optimize(load_profile, zero_pv)
-        # self.assertAlmostEqual(result['battery_capacity'], 0, places=2)
         
         # Test high battery cost case
         high_cost_config = OptimizerConfig(
             tou_prices=self.tou_prices,
-            pv_capacity=500,
             battery_cost_per_kwh=10000  # Very high battery cost
         )
-        optimizer = PVBatOptimizer(high_cost_config)
-        result = optimizer.optimize(load_profile, pv_profile)
+        optimizer = PVBatOptimizer_linearProg(high_cost_config)
+        result = optimizer.optimize(net_load)
         self.assertAlmostEqual(result['battery_capacity'], 0, places=2)
+
+        # Test near-zero battery cost case
+        near_zero_cost_config = OptimizerConfig(
+            tou_prices=self.tou_prices,
+            battery_cost_per_kwh=0.0001  # Near-zero battery cost
+        )
+        optimizer = PVBatOptimizer_linearProg(near_zero_cost_config)
+        result = optimizer.optimize(net_load)
+        self.assertAlmostEqual(result['battery_capacity'], self.config.max_battery_capacity,
+        delta=self.config.max_battery_capacity * 0.01,
+        msg="Battery capacity should reach maximum feasible value when cost is near-zero")
+
 
 if __name__ == '__main__':
     unittest.main()

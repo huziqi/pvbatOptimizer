@@ -14,15 +14,15 @@ def run_basic_example():
         use_seasonal_prices=True,
         years=10,
         discount_rate=0.10,
-        demand_charge_rate=33.8
-        # demand_charge_rate=0
+        # demand_charge_rate=33.8
+        demand_charge_rate=0
     )
     
     # Create optimizer
     optimizer = PVBatOptimizer_linearProg(config)
     
     # Run optimization
-    start_time = time.time()    
+    start_time = time.time()
     result = optimizer.optimize(net_load)
     end_time = time.time()
     
@@ -39,6 +39,19 @@ def run_basic_example():
         net_load,
         save_dir='optimization_results.png'
     )
+
+    # Save results to CSV
+    result_df = pd.DataFrame(result)
+    result_df.to_csv('seasonal_comparison/optimization_results.csv', index=False)
+    print("Optimization results saved to 'optimization_results.csv'")
+
+    # Calculate KPIs
+    kpis = OptimizerUtils.calculate_system_metrics(result, net_load)
+    print("\nKPIs:")
+    for kpi, value in kpis.items():
+        print(f"{kpi}: {value}")
+
+    OptimizerUtils.plot_single_fig(result['grid_export'], "Time", "Grid Export (kWh)", "seasonal_comparison/grid_export.png")
 
 if __name__ == '__main__':
     run_basic_example()
