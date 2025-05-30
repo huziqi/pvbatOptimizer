@@ -76,9 +76,7 @@ class PVBatOptimizer_linearProg(PVBatOptimizer):
         """Optimize battery capacity"""
         model = self._create_model(net_load)
         model.optimize()
-        
-        # Return results directly; if optimization fails, an exception will be raised in _extract_results
-        return self._extract_results(model, net_load.index)
+        return self._extract_results(model, net_load.index, net_load)
 
     def _create_model(self, net_load: pd.Series) -> gp.Model:
         """Create optimization model"""
@@ -193,7 +191,7 @@ class PVBatOptimizer_linearProg(PVBatOptimizer):
         model.setObjective(obj, gp.GRB.MINIMIZE)
         
         return model
-    def _extract_results(self, model: gp.Model, time_index: pd.DatetimeIndex) -> Dict:
+    def _extract_results(self, model: gp.Model, time_index: pd.DatetimeIndex, net_load: pd.Series) -> Dict:
         """Extract optimization results"""
         # Check if the model was solved successfully
         if model.Status != GRB.OPTIMAL:
@@ -239,6 +237,30 @@ class PVBatOptimizer_linearProg(PVBatOptimizer):
         else:
             demand_charges = {"by_period": {}, "total": 0}
         
+        # Calculate annual cost savings
+        # 1. Calculate original energy cost (without battery system)
+        original_grid_import = pd.Series(np.maximum(net_load.values, 0), index=time_index)
+        original_energy_cost = 0
+        new_energy_cost = 0
+
+        for t in range(T):
+            timestamp = time_index[t]
+            price = self.config.get_price_for_time(timestamp)
+
+            original_energy_cost += original_grid_import[t] * price
+
+            new_energy_cost += grid_import[t] * price
+            new_energy_cost -= grid_export[t] * price * self.config.electricity_sell_price_ratio
+        
+        # Print original and optimized electricity costs
+        print("\nElectricity Cost Comparison:")
+        print(f"Original electricity cost: {original_energy_cost:.2f}")
+        print(f"Optimized electricity cost: {new_energy_cost:.2f}")
+        print(f"Cost savings: {original_energy_cost - new_energy_cost:.2f}")
+        
+        # 3. Calculate annual savings
+        annual_savings = (original_energy_cost - new_energy_cost) / (T / 8760)  # Convert to annual value
+        
         return {
             "battery_capacity": battery_capacity,
             "total_cost": model.objVal,
@@ -248,5 +270,6 @@ class PVBatOptimizer_linearProg(PVBatOptimizer):
             "battery_discharge": pd.Series(battery_discharge, index=time_index),
             "battery_energy": pd.Series(battery_energy, index=time_index),
             "peak_demand": peak_demand,
-            "demand_charges": demand_charges
+            "demand_charges": demand_charges,
+            "annual_savings": annual_savings 
         }

@@ -53,8 +53,8 @@ class OptimizerUtils:
             raise ValueError("Input data contains missing values")
         
         # Check if data contains negative values
-        if (load_profile < 0).any() or (pv_profile < 0).any():
-            raise ValueError("Input data contains negative values")
+        # if (load_profile < 0).any() or (pv_profile < 0).any():
+            # raise ValueError("Input data contains negative values")
         
         return True
 
@@ -177,6 +177,116 @@ class OptimizerUtils:
             }
         
         return metrics
+
+    @staticmethod
+    def calculate_daily_battery_cycles(
+        results: Dict,
+        save_path: str = None,
+        plot: bool = False
+    ) -> Dict:
+        """
+        Calculate daily battery cycle counts and their distribution over a year.
+        
+        Args:
+            results: Dictionary containing optimization results with 'battery_charge' and 'battery_capacity'
+            save_path: Path to save the histogram plot (default: None)
+            plot: Whether to display the plot (default: False)
+            
+        Returns:
+            Dictionary containing:
+            - 'daily_cycles': DataFrame with dates and daily cycle counts
+            - 'cycle_distribution': Series with cycle count ranges and number of days
+            - 'statistics': Dictionary with statistics like mean, median, max cycles per day
+        """
+        # Get battery charge power and capacity
+        battery_charge = results['battery_charge']
+        battery_capacity = results['battery_capacity']
+        
+        # Convert to DataFrame if it's a Series
+        if isinstance(battery_charge, pd.Series):
+            battery_charge_df = battery_charge.to_frame(name='charge')
+        else:
+            # Assuming it's a list with datetime index from results
+            battery_charge_df = pd.DataFrame({'charge': battery_charge}, index=results.get('datetime_index', None))
+            
+        # Ensure we have a datetime index
+        if not isinstance(battery_charge_df.index, pd.DatetimeIndex):
+            raise ValueError("Battery charge data must have datetime index")
+            
+        # Calculate daily energy charged (sum of hourly charge)
+        daily_energy_charged = battery_charge_df.resample('D').sum()
+        
+        # Calculate daily cycles (daily energy charged / battery capacity)
+        daily_cycles = daily_energy_charged['charge'] / battery_capacity
+        daily_cycles = daily_cycles.rename('cycles')
+        
+        # Create DataFrame with date and cycles
+        daily_cycles_df = daily_cycles.reset_index()
+        daily_cycles_df.columns = ['date', 'cycles']
+        
+        # Calculate the distribution of daily cycles
+        # Define cycle ranges (0-0.25, 0.25-0.5, 0.5-0.75, etc.)
+        cycle_ranges = np.arange(0, np.ceil(daily_cycles.max()) + 0.25, 0.25)
+        cycle_labels = [f"{r:.2f}-{r+0.25:.2f}" for r in cycle_ranges[:-1]]
+        
+        # Count days in each cycle range
+        cycle_distribution = pd.cut(daily_cycles, bins=cycle_ranges, labels=cycle_labels, right=False)
+        cycle_distribution = cycle_distribution.value_counts().sort_index()
+        
+        # Calculate statistics
+        statistics = {
+            'mean_cycles_per_day': daily_cycles.mean(),
+            'median_cycles_per_day': daily_cycles.median(),
+            'max_cycles_per_day': daily_cycles.max(),
+            'min_cycles_per_day': daily_cycles.min(),
+            'total_days': len(daily_cycles),
+            'total_cycles': daily_cycles.sum()
+        }
+        
+        # Create and save plot if requested
+        if plot or save_path:
+            # 设置全局字体大小
+            plt.rcParams.update({'font.size': 18})
+            
+            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 12))
+            
+            # Plot daily cycles over time
+            daily_cycles.plot(ax=ax1, linewidth=2)
+            ax1.set_title('Daily Battery Cycles Throughout the Year', fontsize=18)
+            ax1.set_xlabel('Date', fontsize=16)
+            ax1.set_ylabel('Cycles per Day', fontsize=16)
+            ax1.grid(True, linestyle='--', alpha=0.7)
+            ax1.axhline(y=statistics['mean_cycles_per_day'], color='r', linestyle='-', alpha=0.7, 
+                       label=f"Mean: {statistics['mean_cycles_per_day']:.2f} cycles/day")
+            ax1.legend(fontsize=14)
+            ax1.tick_params(axis='both', labelsize=14)
+            
+            # Plot histogram of cycle distribution
+            cycle_distribution.plot(kind='bar', ax=ax2)
+            ax2.set_title('Distribution of Daily Battery Cycles', fontsize=18)
+            ax2.set_xlabel('Cycles per Day', fontsize=16)
+            ax2.set_ylabel('Number of Days', fontsize=16)
+            ax2.grid(True, linestyle='--', alpha=0.7, axis='y')
+            ax2.tick_params(axis='both', labelsize=14)
+            
+            # Add counts as text on top of bars
+            for i, count in enumerate(cycle_distribution):
+                ax2.text(i, count + 0.5, str(count), ha='center', fontsize=14)
+            
+            plt.tight_layout()
+            
+            if save_path:
+                plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            if plot:
+                plt.show()
+            else:
+                plt.close()
+        
+        return {
+            'daily_cycles': daily_cycles_df,
+            'cycle_distribution': cycle_distribution,
+            'statistics': statistics
+        }
 
     @staticmethod
     def plot_seasonal_comparison(
@@ -402,3 +512,57 @@ class OptimizerUtils:
         
         # Calculate net load (positive means import from grid, negative means export to grid)
         return load_profile - pv_profile
+
+    @staticmethod
+    def calculate_economic_metrics(
+        total_cost: float,
+        annual_savings: float,
+        project_lifetime: int = 25,
+        discount_rate: float = 0.08
+    ) -> Dict:
+        """计算项目的经济性指标
+        
+        Args:
+            total_cost: 总投资成本（元）
+            annual_savings: 年节省费用（元/年）
+            project_lifetime: 项目寿命（年），默认25年
+            discount_rate: 折现率，默认8%
+            
+        Returns:
+            Dict: 包含以下经济性指标：
+                - net_benefit: 净收益（元）
+                - irr: 内部收益率（%）
+                - payback_period: 静态投资回收期（年）
+        """
+        # 计算净收益
+        cash_flows = [-total_cost]  # 初始投资为负现金流
+        for _ in range(project_lifetime):
+            cash_flows.append(annual_savings)
+        
+        print(cash_flows)
+        # 计算净现值（NPV）
+        npv = 0
+        for i, cf in enumerate(cash_flows):
+            npv += cf / ((1 + discount_rate) ** i)
+        
+        # 计算净收益
+        net_benefit = npv
+        
+        # 计算IRR
+        try:
+            irr = np.irr(cash_flows) * 100  # 转换为百分比
+        except:
+            irr = None  # 如果无法计算IRR，返回None
+        
+        # 计算静态投资回收期
+        if annual_savings <= 0:
+            payback_period = float('inf')
+        else:
+            payback_period = total_cost / annual_savings
+        
+        return {
+            "net_benefit": net_benefit,
+            "irr": irr,
+            "payback_period": payback_period,
+            "npv": npv
+        }
