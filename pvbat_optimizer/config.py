@@ -51,6 +51,9 @@ class OptimizerConfig:
     
     # Set whether to use seasonal prices
     use_seasonal_prices: bool = False  # Default to using original tou_prices format
+
+    # decision step
+    decision_step: int = 1  # Decision step
     
     def __post_init__(self):
         """Validate configuration parameters"""
@@ -84,7 +87,7 @@ class OptimizerConfig:
         if not 0 < self.discount_rate < 1:
             raise ValueError("Discount rate must be between 0 and 1")
             
-        if not 0 < self.electricity_sell_price_ratio <= 1:
+        if not 0 <= self.electricity_sell_price_ratio <= 1:
             raise ValueError("Electricity sell price ratio must be between 0 and 1")
             
         # Validate battery parameters

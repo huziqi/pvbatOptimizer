@@ -6,19 +6,21 @@ from datetime import datetime
 
 def run_basic_example():
     # Load example data
-    net_load=OptimizerUtils.net_profiles("data/net_load/total_net_load.csv",None)
+    net_load=OptimizerUtils.net_profiles("data/net_load/roof_facade/total_net_load_1h_max.csv",None)
+
     
     config = OptimizerConfig(
-        battery_cost_per_kwh=1200,
-        electricity_sell_price_ratio=0.6,
-        battery_charge_efficiency=0.95,
-        battery_discharge_efficiency=0.95,
-        charge_power_capacity=0.2,
-        discharge_power_capacity=0.2,
+        battery_cost_per_kwh=1300,
+        electricity_sell_price_ratio=0.0,
+        battery_charge_efficiency=0.913,
+        battery_discharge_efficiency=0.913,
+        charge_power_capacity=0.5,
+        discharge_power_capacity=0.5,
         use_seasonal_prices=True,
         years=15,
-        discount_rate=0.0667,
-        demand_charge_rate=0
+        discount_rate=0.13,
+        decision_step=1,
+        demand_charge_rate=33.8
         # demand_charge_rate=0
     )
     
@@ -35,14 +37,15 @@ def run_basic_example():
     print("Optimization results:")
     print(f"Optimal battery capacity: {result['battery_capacity']:.2f} kWh")
     print(f"Total cost: {result['total_cost']:.2f} currency")
+    print(f"Battery construction cost: {result['battery_construction_cost']:.2f} currency")
     print(f"\nOptimization duration: {end_time - start_time:.2f} seconds")
     
     # Plot results
-    OptimizerUtils.plot_seasonal_comparison(
-        result,
-        net_load,
-        save_dir='optimization_results.png'
-    )
+    # OptimizerUtils.plot_seasonal_comparison(
+    #     result,
+    #     net_load,
+    #     save_dir='optimization_results.png'
+    # )
 
     # Save results to CSV
     result_df = pd.DataFrame(result)
@@ -60,18 +63,14 @@ def run_basic_example():
         total_cost=result['total_cost'],
         annual_savings=result['annual_savings'],
         project_lifetime=config.years,
-        discount_rate=config.discount_rate
+        discount_rate=0.01,
+        battery_construction_cost=result['battery_construction_cost']
     )
     
     print("\n经济性指标:")
-    print(f"净收益: {economic_metrics['net_benefit']:.2f}元")
-    if economic_metrics['irr'] is not None:
-        print(f"内部收益率: {economic_metrics['irr']:.2f}%")
-    else:
-        print("内部收益率: 无法计算")
     print(f"静态投资回收期: {economic_metrics['payback_period']:.2f}年")
     print(f"净现值: {economic_metrics['npv']:.2f}元")
-
+    print(f"内部收益率: {economic_metrics['irr']:.2f}%")
     # OptimizerUtils.plot_single_fig(result['grid_export'], "Time", "Grid Export (kWh)", "seasonal_comparison/grid_export.png")
 
     # OptimizerUtils.calculate_daily_battery_cycles(result,save_path='seasonal_comparison/daily_battery_cycles.png')

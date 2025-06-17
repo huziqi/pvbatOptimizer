@@ -514,11 +514,49 @@ class OptimizerUtils:
         return load_profile - pv_profile
 
     @staticmethod
+    def calculate_irr(cashflows: List[float], max_iterations: int = 1000, precision: float = 1e-6) -> float:
+        """
+        计算内部收益率(IRR)
+        
+        参数:
+            cashflows: 现金流列表(包括初始投资)
+            max_iterations: 最大迭代次数
+            precision: 计算精度
+            
+        返回:
+            内部收益率(小数形式，如0.15表示15%)
+        """
+        x0 = 0.1  # 初始猜测值
+        iterations = 0
+        
+        while iterations < max_iterations:
+            npv = 0.0
+            derivative = 0.0
+            
+            for t, cf in enumerate(cashflows):
+                npv += cf / ((1 + x0) ** t)
+                derivative += -t * cf / ((1 + x0) ** (t + 1))
+            
+            if abs(npv) < precision:
+                return x0
+                
+            x1 = x0 - npv / derivative
+            
+            if abs(x1 - x0) < precision:
+                return x1
+                
+            x0 = x1
+            iterations += 1
+        
+        raise ValueError("未能收敛，请检查现金流数据")
+
+    @staticmethod
     def calculate_economic_metrics(
         total_cost: float,
         annual_savings: float,
         project_lifetime: int = 25,
-        discount_rate: float = 0.08
+        discount_rate: float = 0.08,
+        battery_construction_cost: float = 0
     ) -> Dict:
         """计算项目的经济性指标
         
@@ -535,8 +573,8 @@ class OptimizerUtils:
                 - payback_period: 静态投资回收期（年）
         """
         # 计算净收益
-        cash_flows = [-total_cost]  # 初始投资为负现金流
-        for _ in range(project_lifetime):
+        cash_flows = [-battery_construction_cost+annual_savings]  # 初始投资为负现金流
+        for _ in range(project_lifetime-1):
             cash_flows.append(annual_savings)
         
         print(cash_flows)
@@ -545,24 +583,30 @@ class OptimizerUtils:
         for i, cf in enumerate(cash_flows):
             npv += cf / ((1 + discount_rate) ** i)
         
-        # 计算净收益
-        net_benefit = npv
-        
-        # 计算IRR
-        try:
-            irr = np.irr(cash_flows) * 100  # 转换为百分比
-        except:
-            irr = None  # 如果无法计算IRR，返回None
-        
-        # 计算静态投资回收期
-        if annual_savings <= 0:
-            payback_period = float('inf')
-        else:
-            payback_period = total_cost / annual_savings
-        
+        # # 计算静态投资回收期
+        # if annual_savings <= 0:
+        #     payback_period = float('inf')
+        # else:
+        #     payback_period = total_cost / annual_savings
+
+         # 计算回本周期
+        cumulative_cf = 0
+        payback_period = float('inf')
+        for i, cf in enumerate(cash_flows):
+            cumulative_cf += cf
+            if cumulative_cf >= 0:
+                # 使用线性插值计算更精确的回本周期
+                if i == 0:
+                    payback_period = 0
+                else:
+                    prev_cf = cumulative_cf - cf
+                    payback_period = i - 1 + abs(prev_cf / cf)
+                break
+
+        # 计算内部收益率
+        irr = OptimizerUtils.calculate_irr(cash_flows) * 100  # Convert to percentage
         return {
-            "net_benefit": net_benefit,
-            "irr": irr,
             "payback_period": payback_period,
-            "npv": npv
+            "npv": npv,
+            "irr": irr
         }

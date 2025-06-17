@@ -114,7 +114,7 @@ class PVBatOptimizer_linearProg(PVBatOptimizer):
         
         # Add constraints in bulk
         model.addConstrs(
-            (battery_discharge[t] - battery_charge[t] + grid_import[t] - grid_export[t] >= net_load[t]
+            (battery_discharge[t] - battery_charge[t] + grid_import[t] - grid_export[t] == net_load[t]
              for t in range(T)),
             name="load_balance"
         )
@@ -137,13 +137,13 @@ class PVBatOptimizer_linearProg(PVBatOptimizer):
         
         # Charge and discharge power constraints
         model.addConstrs(
-            (battery_charge[t] <= battery_capacity * self.config.charge_power_capacity
+            (battery_charge[t] <= battery_capacity * self.config.charge_power_capacity * self.config.decision_step
              for t in range(T)),
             name="charge_power"
         )
         
         model.addConstrs(
-            (battery_discharge[t] <= battery_capacity * self.config.discharge_power_capacity
+            (battery_discharge[t] <= battery_capacity * self.config.discharge_power_capacity * self.config.decision_step
              for t in range(T)),
             name="discharge_power"
         )
@@ -158,8 +158,8 @@ class PVBatOptimizer_linearProg(PVBatOptimizer):
         # Battery energy balance constraints
         model.addConstrs(
             (battery_energy[t] == (1 - self.config.self_discharge_rate) * battery_energy[t-1] +
-             self.config.battery_charge_efficiency * battery_charge[t] -
-             battery_discharge[t] / self.config.battery_discharge_efficiency
+             self.config.battery_charge_efficiency * battery_charge[t] * self.config.decision_step -
+             battery_discharge[t] * self.config.decision_step / self.config.battery_discharge_efficiency    
              for t in range(1, T)),
             name="energy_balance"
         )
@@ -180,8 +180,8 @@ class PVBatOptimizer_linearProg(PVBatOptimizer):
             timestamp = net_load.index[t]
             price = self.config.get_price_for_time(timestamp)
             
-            obj += grid_import[t] * price
-            obj -= grid_export[t] * price * self.config.electricity_sell_price_ratio
+            obj += grid_import[t] * price * self.config.decision_step       
+            obj -= grid_export[t] * price * self.config.electricity_sell_price_ratio * self.config.decision_step
         
         # Demand charge cost
         if self.config.demand_charge_rate > 0:
@@ -247,10 +247,10 @@ class PVBatOptimizer_linearProg(PVBatOptimizer):
             timestamp = time_index[t]
             price = self.config.get_price_for_time(timestamp)
 
-            original_energy_cost += original_grid_import[t] * price
+            original_energy_cost += original_grid_import[t] * price * self.config.decision_step
 
-            new_energy_cost += grid_import[t] * price
-            new_energy_cost -= grid_export[t] * price * self.config.electricity_sell_price_ratio
+            new_energy_cost += grid_import[t] * price * self.config.decision_step
+            new_energy_cost -= grid_export[t] * price * self.config.electricity_sell_price_ratio * self.config.decision_step
         
         # Print original and optimized electricity costs
         print("\nElectricity Cost Comparison:")
@@ -259,7 +259,10 @@ class PVBatOptimizer_linearProg(PVBatOptimizer):
         print(f"Cost savings: {original_energy_cost - new_energy_cost:.2f}")
         
         # 3. Calculate annual savings
-        annual_savings = (original_energy_cost - new_energy_cost) / (T / 8760)  # Convert to annual value
+        annual_savings = (original_energy_cost - new_energy_cost) 
+
+        # 4. Battery construction cost
+        battery_construction_cost = battery_capacity * self.config.battery_cost_per_kwh
         
         return {
             "battery_capacity": battery_capacity,
@@ -271,5 +274,6 @@ class PVBatOptimizer_linearProg(PVBatOptimizer):
             "battery_energy": pd.Series(battery_energy, index=time_index),
             "peak_demand": peak_demand,
             "demand_charges": demand_charges,
-            "annual_savings": annual_savings 
-        }
+            "annual_savings": annual_savings,
+            "battery_construction_cost": battery_construction_cost
+            }
