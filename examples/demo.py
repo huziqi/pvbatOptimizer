@@ -6,7 +6,7 @@ from datetime import datetime
 
 def run_basic_example():
     # Load example data
-    net_load=OptimizerUtils.net_profiles("data/net_load/roof_PartFacade/15min/net_load_E39.csv",None)
+    net_load=OptimizerUtils.net_profiles("data/net_load/roof_PartFacade/15min/net_load_E13.csv",None)
 
     
     config = OptimizerConfig(
@@ -20,8 +20,8 @@ def run_basic_example():
         years=15,
         discount_rate=0.13,
         decision_step=0.25,
-        # demand_charge_rate=33.8
-        demand_charge_rate=0
+        demand_charge_rate=33.8
+        # demand_charge_rate=0
     )
     
     # Create optimizer
