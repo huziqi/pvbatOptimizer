@@ -6,6 +6,13 @@ pvbat_optimizer/__pycache__/
 # C extensions
 *.so
 
+.cursor/
+data/
+seasonal_comparison/
+examples/test.py
+
+analysis/
+
 # Distribution / packaging
 .Python
 build/
