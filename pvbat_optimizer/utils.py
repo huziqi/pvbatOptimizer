@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from typing import Dict, List, TYPE_CHECKING
+from typing import Dict, List, Union, Tuple, TYPE_CHECKING
 import os
 import matplotlib.dates as mdates
 
@@ -292,20 +292,90 @@ class OptimizerUtils:
     def plot_seasonal_comparison(
         results: Dict,
         load_profile: pd.Series,
+        months: Union[int, List[int], Tuple[int, int]] = [3, 8],
         save_dir: str = 'seasonal_comparison',
         plot: bool = False
     ):
         """
-        Plot comparison between March and August for each metric in separate figures
+        Plot comparison between selected months for each metric in separate figures
         
         Args:
             results: Dictionary containing optimization results
             load_profile: Series containing load data
-            pv_profile: Series containing PV generation data
-            save_dir: Directory to save the plots (default: 'seasonal_comparison')
+            months: Months to plot. Can be:
+                   - Single month (int): e.g., 3 for March only
+                   - List of months (List[int]): e.g., [3, 8] for March and August, [6, 7, 8] for summer months
+                   - Tuple for consecutive months (Tuple[int, int]): e.g., (6, 8) for June through August, (11, 2) for Nov through Feb
+            save_dir: Base directory to save the plots (default: 'seasonal_comparison'). 
+                     A month-specific subfolder will be created automatically.
             plot: Whether to display the plots
+            
+        File Organization:
+            Plots are saved in month-specific subfolders:
+            - Single month: save_dir/Mar/
+            - Multiple months: save_dir/Mar_Aug/ or save_dir/Jun_Jul_Aug/
+            - Original filenames are preserved (e.g., load_comparison.png)
+            
+        Examples:
+            # Plot single month (March) -> saves to seasonal_comparison/Mar/
+            plot_seasonal_comparison(results, load_profile, months=3)
+            
+            # Plot two specific months -> saves to seasonal_comparison/Mar_Aug/
+            plot_seasonal_comparison(results, load_profile, months=[3, 8])
+            
+            # Plot consecutive months -> saves to seasonal_comparison/Jun_Jul_Aug/
+            plot_seasonal_comparison(results, load_profile, months=(6, 8))
+            
+            # Plot winter months -> saves to seasonal_comparison/Nov_Dec_Jan_Feb/
+            plot_seasonal_comparison(results, load_profile, months=(11, 2))
         """
-        # Create folder if it doesn't exist
+        # Parse months parameter
+        if isinstance(months, int):
+            # Single month
+            month_list = [months]
+        elif isinstance(months, (list, tuple)) and len(months) == 2 and isinstance(months[0], int) and isinstance(months[1], int):
+            if isinstance(months, tuple):
+                # Consecutive months range
+                start_month, end_month = months
+                if start_month <= end_month:
+                    month_list = list(range(start_month, end_month + 1))
+                else:
+                    # Handle year wrap-around (e.g., Nov to Feb)
+                    month_list = list(range(start_month, 13)) + list(range(1, end_month + 1))
+            else:
+                # List of specific months
+                month_list = months
+        elif isinstance(months, list):
+            month_list = months
+        else:
+            raise ValueError("months parameter must be int, list of ints, or tuple of two ints")
+        
+        # Validate month numbers
+        for month in month_list:
+            if not (1 <= month <= 12):
+                raise ValueError(f"Invalid month number: {month}. Must be between 1 and 12.")
+        
+        # Filter data for selected months and check availability
+        month_filters = {}
+        month_names = {1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'May', 6: 'Jun',
+                      7: 'Jul', 8: 'Aug', 9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dec'}
+        
+        available_months = []
+        for month in month_list:
+            month_filter = load_profile.index.month == month
+            if any(month_filter):
+                month_filters[month] = month_filter
+                available_months.append(month)
+            else:
+                print(f"Warning: No data available for {month_names[month]} (month {month})")
+        
+        # Create month-specific folder name
+        if available_months:
+            month_folder_name = '_'.join([month_names[m] for m in available_months])
+        else:
+            month_folder_name = 'no_data'
+        
+        # Create folder structure if save_dir is provided
         if save_dir:
             # Handle the case where save_dir is actually a file with extension
             if '.' in os.path.basename(save_dir):
@@ -315,18 +385,21 @@ class OptimizerUtils:
                 if not save_dir:
                     save_dir = 'seasonal_comparison'
             
+            # Create month-specific subfolder
+            month_save_dir = os.path.join(save_dir, month_folder_name)
+            
             # Create directory if it doesn't exist
-            if not os.path.exists(save_dir):
-                os.makedirs(save_dir)
+            if not os.path.exists(month_save_dir):
+                os.makedirs(month_save_dir)
+                print(f"Created directory: {month_save_dir}")
+        else:
+            month_save_dir = None
         
-        # Filter data for March and August
-        march_filter = load_profile.index.month == 3
-        august_filter = load_profile.index.month == 8
-        
-        # Check if there is data for both months
-        if not any(march_filter) or not any(august_filter):
-            print("Warning: No data available for either March or August. Cannot create seasonal comparison.")
+        if not available_months:
+            print("Warning: No data available for any of the selected months. Cannot create comparison.")
             return
+        
+        print(f"Creating plots for months: {[month_names[m] for m in available_months]}")
         
         # List of metrics to plot with their properties
         metrics = [
@@ -383,53 +456,95 @@ class OptimizerUtils:
         # Create and save each plot
         for metric in metrics:
             try:
-                # Create figure with 2 rows and 1 column
-                fig, axs = plt.subplots(2, 1, figsize=(12, 10))
+                num_months = len(available_months)
                 
-                # Plot for March
-                march_data = metric['data'][march_filter]
-                if not march_data.empty:
-                    axs[0].plot(march_data.index, march_data, label=metric['label'], color=metric['color'])
-                    axs[0].set_title(f"March - {metric['title']}")
-                    axs[0].set_xlabel('Time')
-                    axs[0].set_ylabel(metric['ylabel'])
-                    axs[0].legend()
-                    axs[0].grid(True)
+                if num_months == 1:
+                    # Single month - create single plot
+                    fig, ax = plt.subplots(1, 1, figsize=(12, 6))
+                    month = available_months[0]
+                    month_data = metric['data'][month_filters[month]]
                     
-                    # Format x-axis for better readability - 每隔2天显示一个日期
-                    axs[0].xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
-                    axs[0].xaxis.set_major_locator(mdates.DayLocator(interval=2))
-                else:
-                    axs[0].text(0.5, 0.5, 'No data available for March', 
-                              horizontalalignment='center', verticalalignment='center',
-                              transform=axs[0].transAxes)
-                
-                # Plot for August
-                august_data = metric['data'][august_filter]
-                if not august_data.empty:
-                    axs[1].plot(august_data.index, august_data, label=metric['label'], color=metric['color'])
-                    axs[1].set_title(f"August - {metric['title']}")
-                    axs[1].set_xlabel('Time')
-                    axs[1].set_ylabel(metric['ylabel'])
-                    axs[1].legend()
-                    axs[1].grid(True)
+                    if not month_data.empty:
+                        ax.plot(month_data.index, month_data, label=metric['label'], color=metric['color'])
+                        ax.set_title(f"{month_names[month]} - {metric['title']}")
+                        ax.set_xlabel('Time')
+                        ax.set_ylabel(metric['ylabel'])
+                        ax.legend()
+                        ax.grid(True)
+                        
+                        # Format x-axis for better readability
+                        ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
+                        ax.xaxis.set_major_locator(mdates.DayLocator(interval=2))
+                    else:
+                        ax.text(0.5, 0.5, f'No data available for {month_names[month]}', 
+                               horizontalalignment='center', verticalalignment='center',
+                               transform=ax.transAxes)
                     
-                    # Format x-axis for better readability - 每隔2天显示一个日期
-                    axs[1].xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
-                    axs[1].xaxis.set_major_locator(mdates.DayLocator(interval=2))
+                    # Use original filename for single month (month info is in folder name)
+                    filename = metric['filename']
+                    title_suffix = f"({month_names[month]})"
+                    
                 else:
-                    axs[1].text(0.5, 0.5, 'No data available for August', 
-                              horizontalalignment='center', verticalalignment='center',
-                              transform=axs[1].transAxes)
+                    # Multiple months - create subplots with optimal layout
+                    if num_months <= 4:
+                        # Vertical layout for 2-4 months
+                        rows, cols = num_months, 1
+                        fig_height = 4 * num_months
+                        fig_width = 12
+                    else:
+                        # Grid layout for more than 4 months
+                        cols = 2
+                        rows = (num_months + cols - 1) // cols  # Ceiling division
+                        fig_height = 4 * rows
+                        fig_width = 20
+                    
+                    fig, axs = plt.subplots(rows, cols, figsize=(fig_width, fig_height))
+                    
+                    # Make axs always iterable (even for single subplot)
+                    if num_months == 1:
+                        axs = [axs]
+                    elif cols == 1:
+                        axs = axs  # Already 1D array for single column
+                    else:
+                        axs = axs.flatten()  # Flatten 2D array to 1D
+                    
+                    for i, month in enumerate(available_months):
+                        month_data = metric['data'][month_filters[month]]
+                        
+                        if not month_data.empty:
+                            axs[i].plot(month_data.index, month_data, label=metric['label'], color=metric['color'])
+                            axs[i].set_title(f"{month_names[month]} - {metric['title']}")
+                            axs[i].set_xlabel('Time')
+                            axs[i].set_ylabel(metric['ylabel'])
+                            axs[i].legend()
+                            axs[i].grid(True)
+                            
+                            # Format x-axis for better readability
+                            axs[i].xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
+                            axs[i].xaxis.set_major_locator(mdates.DayLocator(interval=2))
+                        else:
+                            axs[i].text(0.5, 0.5, f'No data available for {month_names[month]}', 
+                                       horizontalalignment='center', verticalalignment='center',
+                                       transform=axs[i].transAxes)
+                    
+                    # Hide unused subplots if we have a grid layout
+                    if cols > 1:
+                        total_subplots = rows * cols
+                        for j in range(num_months, total_subplots):
+                            axs[j].set_visible(False)
+                    
+                    # Use original filename for multiple months (month info is in folder name)
+                    filename = metric['filename']
+                    title_suffix = f"({', '.join([month_names[m] for m in available_months])})"
                 
                 # Add main title
-                fig.suptitle(f"{metric['title']}: March vs August Comparison", fontsize=16)
+                fig.suptitle(f"{metric['title']} Comparison {title_suffix}", fontsize=16)
                 
                 plt.tight_layout(rect=[0, 0, 1, 0.95])  # Adjust layout to make room for suptitle
                 
                 # Save figure if directory is provided
-                if save_dir:
-                    save_path = os.path.join(save_dir, metric['filename'])
+                if month_save_dir:
+                    save_path = os.path.join(month_save_dir, filename)
                     plt.savefig(save_path, dpi=300, bbox_inches='tight')
                     print(f"Saved {metric['title']} comparison to {save_path}")
                 
@@ -526,6 +641,22 @@ class OptimizerUtils:
         返回:
             内部收益率(小数形式，如0.15表示15%)
         """
+        # 检查边界情况
+        if not cashflows or len(cashflows) < 2:
+            return 0.1  # 默认折现率
+        
+        # 检查是否有负现金流（投资）
+        has_negative = any(cf < 0 for cf in cashflows)
+        has_positive = any(cf > 0 for cf in cashflows)
+        
+        # 如果没有负现金流或没有正现金流，无法计算合理的IRR
+        if not has_negative or not has_positive:
+            return 0.1  # 返回默认折现率
+        
+        # 检查第一期现金流是否过小
+        if abs(cashflows[0]) < 1e-6:
+            return 0.1  # 返回默认折现率
+        
         x0 = 0.1  # 初始猜测值
         iterations = 0
         
@@ -533,22 +664,43 @@ class OptimizerUtils:
             npv = 0.0
             derivative = 0.0
             
-            for t, cf in enumerate(cashflows):
-                npv += cf / ((1 + x0) ** t)
-                derivative += -t * cf / ((1 + x0) ** (t + 1))
-            
-            if abs(npv) < precision:
-                return x0
+            try:
+                for t, cf in enumerate(cashflows):
+                    if abs(cf) < 1e-10:  # 跳过过小的现金流
+                        continue
+                    power_term = (1 + x0) ** t
+                    if power_term == 0 or not np.isfinite(power_term):
+                        break
+                    npv += cf / power_term
+                    if t > 0:
+                        derivative_term = (1 + x0) ** (t + 1)
+                        if derivative_term == 0 or not np.isfinite(derivative_term):
+                            break
+                        derivative += -t * cf / derivative_term
                 
-            x1 = x0 - npv / derivative
-            
-            if abs(x1 - x0) < precision:
-                return x1
+                # 检查计算结果是否有效
+                if not np.isfinite(npv) or not np.isfinite(derivative) or abs(derivative) < 1e-10:
+                    return 0.1  # 返回默认折现率
                 
-            x0 = x1
-            iterations += 1
+                if abs(npv) < precision:
+                    return x0
+                    
+                x1 = x0 - npv / derivative
+                
+                # 检查新的猜测值是否合理
+                if not np.isfinite(x1) or x1 < -0.99:  # 避免极端值
+                    return 0.1  # 返回默认折现率
+                
+                if abs(x1 - x0) < precision:
+                    return max(x1, -0.99)  # 确保返回值不会过小
+                    
+                x0 = max(x1, -0.99)  # 限制下界
+                iterations += 1
+                
+            except (OverflowError, ZeroDivisionError, ValueError):
+                return 0.1  # 返回默认折现率
         
-        raise ValueError("未能收敛，请检查现金流数据")
+        return 0.1  # 如果未收敛，返回默认折现率
 
     @staticmethod
     def calculate_economic_metrics(
@@ -565,6 +717,7 @@ class OptimizerUtils:
             annual_savings: 年节省费用（元/年）
             project_lifetime: 项目寿命（年），默认25年
             discount_rate: 折现率，默认8%
+            battery_construction_cost: 电池建设成本（元）
             
         Returns:
             Dict: 包含以下经济性指标：
@@ -572,24 +725,32 @@ class OptimizerUtils:
                 - irr: 内部收益率（%）
                 - payback_period: 静态投资回收期（年）
         """
-        # 计算净收益
-        cash_flows = [-battery_construction_cost+annual_savings]  # 初始投资为负现金流
-        for _ in range(project_lifetime-1):
+        # 处理边界情况：如果没有投资或没有节省，返回默认值
+        if battery_construction_cost <= 0 or annual_savings <= 0:
+            return {
+                "payback_period": 0.0 if battery_construction_cost <= 0 else float('inf'),
+                "npv": annual_savings * project_lifetime,  # 简单累计
+                "irr": 0.0  # 默认IRR为0%
+            }
+        
+        # 构建现金流：第一年包含投资成本和收益，后续年份只有收益
+        cash_flows = [-battery_construction_cost + annual_savings]  # 第0年：初始投资 + 第一年收益
+        for _ in range(project_lifetime - 1):  # 剩余年份
             cash_flows.append(annual_savings)
         
         print(cash_flows)
+        
         # 计算净现值（NPV）
         npv = 0
-        for i, cf in enumerate(cash_flows):
-            npv += cf / ((1 + discount_rate) ** i)
-        
-        # # 计算静态投资回收期
-        # if annual_savings <= 0:
-        #     payback_period = float('inf')
-        # else:
-        #     payback_period = total_cost / annual_savings
+        try:
+            for i, cf in enumerate(cash_flows):
+                discount_factor = (1 + discount_rate) ** i
+                if np.isfinite(discount_factor) and discount_factor > 0:
+                    npv += cf / discount_factor
+        except (OverflowError, ZeroDivisionError):
+            npv = 0
 
-         # 计算回本周期
+        # 计算回本周期
         cumulative_cf = 0
         payback_period = float('inf')
         for i, cf in enumerate(cash_flows):
@@ -600,11 +761,18 @@ class OptimizerUtils:
                     payback_period = 0
                 else:
                     prev_cf = cumulative_cf - cf
-                    payback_period = i - 1 + abs(prev_cf / cf)
+                    if cf != 0:
+                        payback_period = i - 1 + abs(prev_cf / cf)
+                    else:
+                        payback_period = i
                 break
 
         # 计算内部收益率
-        irr = OptimizerUtils.calculate_irr(cash_flows) * 100  # Convert to percentage
+        try:
+            irr = OptimizerUtils.calculate_irr(cash_flows) * 100  # Convert to percentage
+        except:
+            irr = 0.0  # 默认IRR为0%
+        
         return {
             "payback_period": payback_period,
             "npv": npv,

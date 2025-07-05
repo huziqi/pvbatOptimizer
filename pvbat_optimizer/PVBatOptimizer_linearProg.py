@@ -242,6 +242,8 @@ class PVBatOptimizer_linearProg(PVBatOptimizer):
         original_grid_import = pd.Series(np.maximum(net_load.values, 0), index=time_index)
         original_energy_cost = 0
         new_energy_cost = 0
+        new_energy_cost_without_demand_charge = 0
+        sell_energy_profit = 0
 
         for t in range(T):
             timestamp = time_index[t]
@@ -250,16 +252,49 @@ class PVBatOptimizer_linearProg(PVBatOptimizer):
             original_energy_cost += original_grid_import[t] * price * self.config.decision_step
 
             new_energy_cost += grid_import[t] * price * self.config.decision_step
+            new_energy_cost_without_demand_charge += grid_import[t] * price * self.config.decision_step
             new_energy_cost -= grid_export[t] * price * self.config.electricity_sell_price_ratio * self.config.decision_step
+            sell_energy_profit += grid_export[t] * price * self.config.electricity_sell_price_ratio * self.config.decision_step
+        # 2. Calculate original demand charges (without battery system)
+        original_demand_cost = 0
+        new_demand_cost = demand_charges["total"]
         
-        # Print original and optimized electricity costs
+        if self.config.demand_charge_rate > 0:
+            # Calculate original peak demand for each billing period
+            original_peak_demand = {}
+            # print("\nBilling Periods Information:")
+            for period_id, period_indices in billing_periods.items():
+                # print(f"Period ID: {period_id}")
+                # print(f"Period Indices: {period_indices[:10]}...")  # 只显示前10个索引
+                # print(f"Number of time points in period: {len(period_indices)}")
+                period_peak = 0
+                for t in period_indices:
+                    period_peak = max(period_peak, original_grid_import[t])
+                original_peak_demand[period_id] = period_peak
+                # print(f"Peak demand for period {period_id}: {period_peak:.2f} kW")
+            
+            # Calculate original demand charges
+            original_demand_charges = OptimizerUtils.calculate_demand_charges(
+                original_peak_demand, self.config.demand_charge_rate)
+            original_demand_cost = original_demand_charges["total"]
+        
+        # Print cost comparison
         print("\nElectricity Cost Comparison:")
         print(f"Original electricity cost: {original_energy_cost:.2f}")
         print(f"Optimized electricity cost: {new_energy_cost:.2f}")
-        print(f"Cost savings: {original_energy_cost - new_energy_cost:.2f}")
-        
-        # 3. Calculate annual savings
-        annual_savings = (original_energy_cost - new_energy_cost) 
+        print(f"Original demand cost: {original_demand_cost:.2f}")
+        print(f"Optimized demand cost: {new_demand_cost:.2f}")
+        print(f"Total original cost: {original_energy_cost + original_demand_cost:.2f}")
+        print(f"Total optimized cost: {new_energy_cost + new_demand_cost:.2f}")
+        print(f"Energy cost savings: {original_energy_cost - new_energy_cost:.2f}")
+        print(f"Demand cost savings: {original_demand_cost - new_demand_cost:.2f}")
+        print(f"Total cost savings: {(original_energy_cost + original_demand_cost) - (new_energy_cost + new_demand_cost):.2f}")
+        print(f"Total cost ratio: {((original_energy_cost + original_demand_cost) - (new_energy_cost + new_demand_cost))/(original_energy_cost + original_demand_cost)*100:.2f}%")
+        print(f"Sell energy profit: {sell_energy_profit:.2f}")
+        print(f"Sell energy profit ratio: {sell_energy_profit/(original_energy_cost+original_demand_cost)*100:.2f}%")
+        print(f"Optimized energy cost without demand charge: {new_energy_cost_without_demand_charge:.2f}")
+        # 3. Calculate annual savings (including both energy and demand savings)
+        annual_savings = (original_energy_cost + original_demand_cost) - (new_energy_cost + new_demand_cost) 
 
         # 4. Battery construction cost
         battery_construction_cost = battery_capacity * self.config.battery_cost_per_kwh
@@ -275,5 +310,9 @@ class PVBatOptimizer_linearProg(PVBatOptimizer):
             "peak_demand": peak_demand,
             "demand_charges": demand_charges,
             "annual_savings": annual_savings,
-            "battery_construction_cost": battery_construction_cost
+            "battery_construction_cost": battery_construction_cost,
+            "operational_cost_saving_ratio": (original_energy_cost+original_demand_cost - new_energy_cost - new_demand_cost)/(original_energy_cost+original_demand_cost),
+            "sell_energy_profit": sell_energy_profit,
+            "sell_energy_profit_ratio": sell_energy_profit/(original_energy_cost+original_demand_cost),
+            "new_energy_cost_without_demand_charge": new_energy_cost_without_demand_charge
             }

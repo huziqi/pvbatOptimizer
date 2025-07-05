@@ -6,12 +6,12 @@ from datetime import datetime
 
 def run_basic_example():
     # Load example data
-    net_load=OptimizerUtils.net_profiles("data/net_load/roof_facade/total_net_load_1h_max.csv",None)
+    net_load=OptimizerUtils.net_profiles("data/net_load/roof_PartFacade/15min/net_load_E39.csv",None)
 
     
     config = OptimizerConfig(
         battery_cost_per_kwh=1300,
-        electricity_sell_price_ratio=0.0,
+        electricity_sell_price_ratio=0.6,
         battery_charge_efficiency=0.913,
         battery_discharge_efficiency=0.913,
         charge_power_capacity=0.5,
@@ -19,9 +19,9 @@ def run_basic_example():
         use_seasonal_prices=True,
         years=15,
         discount_rate=0.13,
-        decision_step=1,
-        demand_charge_rate=33.8
-        # demand_charge_rate=0
+        decision_step=0.25,
+        # demand_charge_rate=33.8
+        demand_charge_rate=0
     )
     
     # Create optimizer
@@ -44,7 +44,8 @@ def run_basic_example():
     # OptimizerUtils.plot_seasonal_comparison(
     #     result,
     #     net_load,
-    #     save_dir='optimization_results.png'
+    #     months=(1,6),
+    #     save_dir='seasonal_comparison'
     # )
 
     # Save results to CSV
