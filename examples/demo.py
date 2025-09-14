@@ -14,12 +14,17 @@ def run_basic_example():
         electricity_sell_price_ratio=0.6,
         battery_charge_efficiency=0.913,
         battery_discharge_efficiency=0.913,
-        charge_power_capacity=0.5,
-        discharge_power_capacity=0.5,
+        charge_power_capacity=0.45,
+        discharge_power_capacity=0.45,
         use_seasonal_prices=True,
         years=15,
         discount_rate=0.13,
         decision_step=0.25,
+        # peak_price=1.61,
+        # high_price=1.34,
+        # flat_price=0.81,
+        # valley_price=0.35,
+        # max_battery_capacity=1368,
         demand_charge_rate=33.8
         # demand_charge_rate=0
     )

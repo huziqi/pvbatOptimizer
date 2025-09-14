@@ -471,18 +471,18 @@ class OptimizerUtils:
                         ax.set_ylabel(metric['ylabel'])
                         ax.legend()
                         ax.grid(True)
-                        
+                    
                         # Format x-axis for better readability
                         ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
                         ax.xaxis.set_major_locator(mdates.DayLocator(interval=2))
                     else:
                         ax.text(0.5, 0.5, f'No data available for {month_names[month]}', 
-                               horizontalalignment='center', verticalalignment='center',
-                               transform=ax.transAxes)
-                    
-                    # Use original filename for single month (month info is in folder name)
-                    filename = metric['filename']
-                    title_suffix = f"({month_names[month]})"
+                                  horizontalalignment='center', verticalalignment='center',
+                                   transform=ax.transAxes)
+                
+                        # Use original filename for single month (month info is in folder name)  
+                        filename = metric['filename']
+                        title_suffix = f"({month_names[month]})"
                     
                 else:
                     # Multiple months - create subplots with optimal layout
@@ -524,7 +524,7 @@ class OptimizerUtils:
                             axs[i].xaxis.set_major_locator(mdates.DayLocator(interval=2))
                         else:
                             axs[i].text(0.5, 0.5, f'No data available for {month_names[month]}', 
-                                       horizontalalignment='center', verticalalignment='center',
+                              horizontalalignment='center', verticalalignment='center',
                                        transform=axs[i].transAxes)
                     
                     # Hide unused subplots if we have a grid layout

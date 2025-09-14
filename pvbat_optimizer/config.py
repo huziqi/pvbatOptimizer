@@ -18,10 +18,10 @@ class OptimizerConfig:
     """
     
     # New price format (optional)
-    peak_price: Optional[float] = 1.44097     # Peak price
-    high_price: Optional[float] = 1.20081     # High price
-    flat_price: Optional[float] = 0.76785     # Flat price
-    valley_price: Optional[float] = 0.33489   # Valley price
+    peak_price: Optional[float] = 1.39     # Peak price
+    high_price: Optional[float] = 1.16     # High price
+    flat_price: Optional[float] = 0.70     # Flat price
+    valley_price: Optional[float] = 0.30   # Valley price
     
     pv_capacity: float = 0          # Installed PV capacity
     battery_cost_per_kwh: float = 0    # Battery cost per CNY/kWh
@@ -53,7 +53,7 @@ class OptimizerConfig:
     use_seasonal_prices: bool = False  # Default to using original tou_prices format
 
     # decision step
-    decision_step: int = 1  # Decision step
+    decision_step: float = 0.25  # Decision step
     
     def __post_init__(self):
         """Validate configuration parameters"""
@@ -147,13 +147,15 @@ class OptimizerConfig:
         hour = timestamp.hour
         
         # Determine price based on month
-        if month in [1, 7, 8, 9, 12]:  # January, July, August, September, December
-            return self._get_special_month_price(hour)
-        else:  # Other months
-            return self._get_regular_month_price(hour)
+        if month in [7, 8]:  # July, August - Peak months type 1
+            return self._get_peak_month_type1_price(hour)
+        elif month in [1, 12]:  # January, December - Peak months type 2
+            return self._get_peak_month_type2_price(hour)
+        else:  # Other months - Non-peak months
+            return self._get_non_peak_month_price(hour)
     
-    def _get_special_month_price(self, hour: int) -> float:
-        """Get price for January, July, August, September, December
+    def _get_peak_month_type1_price(self, hour: int) -> float:
+        """Get price for July, August (Peak months type 1)
         
         Args:
             hour: Hour (0-23)
@@ -161,17 +163,17 @@ class OptimizerConfig:
         Returns:
             Corresponding price for the time period
         """
-        if 18 <= hour < 22:  # Peak: 18:00-22:00
+        if 20 <= hour <= 23:  # Peak: 18:00-22:00
             return self.peak_price
-        elif 11 <= hour < 14 or 22 <= hour < 23:  # High: 11:00-14:00, 22:00-23:00
+        elif 16 <= hour < 19:  # High: 11:00-14:00, 22:00-23:00
             return self.high_price
-        elif 7 <= hour < 11 or 14 <= hour < 18:  # Flat: 7:00-11:00, 14:00-18:00
+        elif 6 <= hour < 11 or 14 <= hour < 15:  # Flat: 7:00-11:00, 14:00-18:00
             return self.flat_price
         else:  # Valley: 23:00-next day 7:00 (i.e., 23:00-0:00, 0:00-7:00)
             return self.valley_price
     
-    def _get_regular_month_price(self, hour: int) -> float:
-        """Get price for other months
+    def _get_peak_month_type2_price(self, hour: int) -> float:
+        """Get price for January, December (Peak months type 2)
         
         Args:
             hour: Hour (0-23)
@@ -179,11 +181,27 @@ class OptimizerConfig:
         Returns:
             Corresponding price for the time period
         """
-        if 18 <= hour < 23:  # High: 18:00-23:00
+        if 18 <= hour <= 21:  # Peak: 18:00-22:00
+            return self.peak_price
+        elif 16 <= hour <= 17 or 22 <= hour <= 23:  # High: 11:00-14:00, 22:00-23:00
             return self.high_price
-        elif 11 <= hour < 14:  # High: 11:00-14:00
+        elif 6 <= hour <= 11 or 12 <= hour <= 13:  # Flat: 7:00-11:00, 14:00-18:00
+            return self.flat_price
+        else:  # Valley: 23:00-next day 7:00 (i.e., 23:00-0:00, 0:00-7:00)
+            return self.valley_price
+    
+    def _get_non_peak_month_price(self, hour: int) -> float:
+        """Get price for non-peak months (February, March, April, May, June, September, October, November)
+        
+        Args:
+            hour: Hour (0-23)
+            
+        Returns:
+            Corresponding price for the time period
+        """
+        if 16 <= hour <= 23:  # High: 18:00-23:00
             return self.high_price
-        elif 7 <= hour < 11 or 14 <= hour < 18:  # Flat: 7:00-11:00, 14:00-18:00
+        elif 6 <= hour <= 11 or 14 <= hour <= 15:  # Flat: 7:00-11:00, 14:00-18:00
             return self.flat_price
         else:  # Valley: 23:00-next day 7:00 (i.e., 23:00-0:00, 0:00-7:00)
             return self.valley_price

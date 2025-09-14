@@ -293,6 +293,7 @@ class PVBatOptimizer_linearProg(PVBatOptimizer):
         print(f"Sell energy profit: {sell_energy_profit:.2f}")
         print(f"Sell energy profit ratio: {sell_energy_profit/(original_energy_cost+original_demand_cost)*100:.2f}%")
         print(f"Optimized energy cost without demand charge: {new_energy_cost_without_demand_charge:.2f}")
+        print(f"profit: {new_energy_cost_without_demand_charge+new_demand_cost+sell_energy_profit:.2f}")
         # 3. Calculate annual savings (including both energy and demand savings)
         annual_savings = (original_energy_cost + original_demand_cost) - (new_energy_cost + new_demand_cost) 
 
