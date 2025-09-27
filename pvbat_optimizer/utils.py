@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 from typing import Dict, List, Union, Tuple, TYPE_CHECKING
 import os
 import matplotlib.dates as mdates
+import numpy_financial as npf
+
 
 if TYPE_CHECKING:
     from .config import OptimizerConfig
@@ -708,7 +710,8 @@ class OptimizerUtils:
         annual_savings: float,
         project_lifetime: int = 25,
         discount_rate: float = 0.08,
-        battery_construction_cost: float = 0
+        battery_construction_cost: float = 0,
+        pv_cost: float = 0.0
     ) -> Dict:
         """计算项目的经济性指标
         
@@ -718,7 +721,7 @@ class OptimizerUtils:
             project_lifetime: 项目寿命（年），默认25年
             discount_rate: 折现率，默认8%
             battery_construction_cost: 电池建设成本（元）
-            
+            pv_cost: 光伏建设成本（元）
         Returns:
             Dict: 包含以下经济性指标：
                 - net_benefit: 净收益（元）
@@ -734,9 +737,9 @@ class OptimizerUtils:
             }
         
         # 构建现金流：第一年包含投资成本和收益，后续年份只有收益
-        cash_flows = [-battery_construction_cost + annual_savings]  # 第0年：初始投资 + 第一年收益
+        cash_flows = [-10000000 - pv_cost + 3976760]  # 第0年：初始投资 + 第一年收益
         for _ in range(project_lifetime - 1):  # 剩余年份
-            cash_flows.append(annual_savings)
+            cash_flows.append(3976760)
         
         print(cash_flows)
         
@@ -769,9 +772,13 @@ class OptimizerUtils:
 
         # 计算内部收益率
         try:
-            irr = OptimizerUtils.calculate_irr(cash_flows) * 100  # Convert to percentage
-        except:
-            irr = 0.0  # 默认IRR为0%
+            irr = npf.irr(cash_flows)*100
+        except Exception as e:
+            print(f"计算失败: {e}")
+        # try:
+        #     irr = OptimizerUtils.calculate_irr(cash_flows) * 100  # Convert to percentage
+        # except:
+        #     irr = 0.0  # 默认IRR为0%
         
         return {
             "payback_period": payback_period,

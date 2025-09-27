@@ -280,13 +280,13 @@ class PVBatOptimizer_linearProg(PVBatOptimizer):
         
         # Print cost comparison
         print("\nElectricity Cost Comparison:")
-        print(f"Original electricity cost: {original_energy_cost:.2f}")
-        print(f"Optimized electricity cost: {new_energy_cost:.2f}")
+        print(f"Original usage cost: {original_energy_cost:.2f}")
+        print(f"Optimized usage cost: {new_energy_cost:.2f}")
         print(f"Original demand cost: {original_demand_cost:.2f}")
         print(f"Optimized demand cost: {new_demand_cost:.2f}")
         print(f"Total original cost: {original_energy_cost + original_demand_cost:.2f}")
         print(f"Total optimized cost: {new_energy_cost + new_demand_cost:.2f}")
-        print(f"Energy cost savings: {original_energy_cost - new_energy_cost:.2f}")
+        print(f"usage cost savings: {original_energy_cost - new_energy_cost:.2f}")
         print(f"Demand cost savings: {original_demand_cost - new_demand_cost:.2f}")
         print(f"Total cost savings: {(original_energy_cost + original_demand_cost) - (new_energy_cost + new_demand_cost):.2f}")
         print(f"Total cost ratio: {((original_energy_cost + original_demand_cost) - (new_energy_cost + new_demand_cost))/(original_energy_cost + original_demand_cost)*100:.2f}%")
