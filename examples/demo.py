@@ -7,7 +7,7 @@ from datetime import datetime
 
 def run_basic_example():
     # Load example data
-    net_load=OptimizerUtils.net_profiles("data/net_load/roof_PartFacade/15min/net_load_E39.csv",None)
+    net_load=OptimizerUtils.net_profiles("Data/test_data.csv",None)
 
     
     config = OptimizerConfig(
@@ -21,13 +21,7 @@ def run_basic_example():
         years=15,
         discount_rate=0.13,
         decision_step=0.25,
-        # peak_price=1.61,
-        # high_price=1.34,
-        # flat_price=0.81,
-        # valley_price=0.35,
-        max_battery_capacity=2349,
         demand_charge_rate=33.8
-        # demand_charge_rate=0
     )
     
     # Create optimizer
@@ -46,13 +40,6 @@ def run_basic_example():
     print(f"Battery construction cost: {result['battery_construction_cost']:.2f} currency")
     print(f"\nOptimization duration: {end_time - start_time:.2f} seconds")
     
-    # Plot results
-    # OptimizerUtils.plot_seasonal_comparison(
-    #     result,
-    #     net_load,
-    #     months=(1,6),
-    #     save_dir='seasonal_comparison'
-    # )
 
     # Save results to CSV
     result_df = pd.DataFrame(result)
@@ -65,7 +52,7 @@ def run_basic_example():
     for kpi, value in kpis.items():
         print(f"{kpi}: {value}")
 
-    # 计算并打印经济性指标
+    # Calculate and print economic metrics
     economic_metrics = OptimizerUtils.calculate_economic_metrics(
         total_cost=result['total_cost'],
         annual_savings=result['annual_savings'],
@@ -76,10 +63,10 @@ def run_basic_example():
         # pv_cost=0
     )
     
-    print("\n经济性指标:")
-    print(f"静态投资回收期: {economic_metrics['payback_period']:.2f}年")
-    print(f"净现值: {economic_metrics['npv']:.2f}元")
-    print(f"内部收益率: {economic_metrics['irr']:.2f}%")
+    print("\nEconomic Metrics:")
+    print(f"Static Payback Period: {economic_metrics['payback_period']:.2f} years")
+    print(f"Net Present Value (NPV): {economic_metrics['npv']:.2f} currency")
+    print(f"Internal Rate of Return (IRR): {economic_metrics['irr']:.2f}%")
     # OptimizerUtils.plot_single_fig(result['grid_export'], "Time", "Grid Export (kWh)", "seasonal_comparison/grid_export.png")
 
     # OptimizerUtils.calculate_daily_battery_cycles(result,save_path='seasonal_comparison/daily_battery_cycles.png')
@@ -91,10 +78,8 @@ def run_multi_plot_example():
     
     # Load net load data for multiple plots
     net_loads = {
-        "E13": OptimizerUtils.net_profiles("data/net_load/roof_PartFacade/15min/net_load_E13.csv", None),
-        "E25_2": OptimizerUtils.net_profiles("data/net_load/roof_PartFacade/15min/net_load_E25_2.csv", None),
-        "E37": OptimizerUtils.net_profiles("data/net_load/roof_PartFacade/15min/net_load_E37.csv", None),
-        "E39": OptimizerUtils.net_profiles("data/net_load/roof_PartFacade/15min/net_load_E39.csv", None)
+        "E13": OptimizerUtils.net_profiles("Data/test_data.csv", None),
+        "E25_2": OptimizerUtils.net_profiles("Data/test_data_2.csv", None)
     }
     
     # Configuration for multi-plot optimization
@@ -109,13 +94,7 @@ def run_multi_plot_example():
         years=15,
         discount_rate=0.13,
         decision_step=0.25,
-        peak_price=1.61,
-        high_price=1.34,
-        flat_price=0.81,
-        valley_price=0.35,
-        # max_battery_capacity=1368,
-        # demand_charge_rate=33.8
-        demand_charge_rate=0
+        demand_charge_rate=33.8
     )
     
     # Total battery capacity constraint (10MW = 10000kWh)

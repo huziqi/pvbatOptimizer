@@ -247,33 +247,33 @@ class OptimizerUtils:
         
         # Create and save plot if requested
         if plot or save_path:
-            # 设置全局字体大小
-            plt.rcParams.update({'font.size': 18})
+            # Set global font size
+            plt.rcParams.update({'font.size': 20}) # Changed from 18 to 20
             
             fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 12))
             
             # Plot daily cycles over time
             daily_cycles.plot(ax=ax1, linewidth=2)
-            ax1.set_title('Daily Battery Cycles Throughout the Year', fontsize=18)
-            ax1.set_xlabel('Date', fontsize=16)
-            ax1.set_ylabel('Cycles per Day', fontsize=16)
+            ax1.set_title('Daily Battery Cycles Throughout the Year', fontsize=20) # Changed from 18 to 20
+            ax1.set_xlabel('Date', fontsize=20) # Changed from 16 to 20
+            ax1.set_ylabel('Cycles per Day', fontsize=20) # Changed from 16 to 20
             ax1.grid(True, linestyle='--', alpha=0.7)
             ax1.axhline(y=statistics['mean_cycles_per_day'], color='r', linestyle='-', alpha=0.7, 
                        label=f"Mean: {statistics['mean_cycles_per_day']:.2f} cycles/day")
-            ax1.legend(fontsize=14)
-            ax1.tick_params(axis='both', labelsize=14)
+            ax1.legend(fontsize=20) # Changed from 14 to 20
+            ax1.tick_params(axis='both', labelsize=20) # Changed from 14 to 20
             
             # Plot histogram of cycle distribution
             cycle_distribution.plot(kind='bar', ax=ax2)
-            ax2.set_title('Distribution of Daily Battery Cycles', fontsize=18)
-            ax2.set_xlabel('Cycles per Day', fontsize=16)
-            ax2.set_ylabel('Number of Days', fontsize=16)
+            ax2.set_title('Distribution of Daily Battery Cycles', fontsize=20) # Changed from 18 to 20
+            ax2.set_xlabel('Cycles per Day', fontsize=20) # Changed from 16 to 20
+            ax2.set_ylabel('Number of Days', fontsize=20) # Changed from 16 to 20
             ax2.grid(True, linestyle='--', alpha=0.7, axis='y')
-            ax2.tick_params(axis='both', labelsize=14)
+            ax2.tick_params(axis='both', labelsize=20) # Changed from 14 to 20
             
             # Add counts as text on top of bars
             for i, count in enumerate(cycle_distribution):
-                ax2.text(i, count + 0.5, str(count), ha='center', fontsize=14)
+                ax2.text(i, count + 0.5, str(count), ha='center', fontsize=20) # Changed from 14 to 20
             
             plt.tight_layout()
             
@@ -633,33 +633,33 @@ class OptimizerUtils:
     @staticmethod
     def calculate_irr(cashflows: List[float], max_iterations: int = 1000, precision: float = 1e-6) -> float:
         """
-        计算内部收益率(IRR)
+        Calculate Internal Rate of Return (IRR)
         
-        参数:
-            cashflows: 现金流列表(包括初始投资)
-            max_iterations: 最大迭代次数
-            precision: 计算精度
+        Args:
+            cashflows: List of cash flows (including initial investment)
+            max_iterations: Maximum number of iterations
+            precision: Calculation precision
             
-        返回:
-            内部收益率(小数形式，如0.15表示15%)
+        Returns:
+            Internal Rate of Return (decimal form, e.g., 0.15 for 15%)
         """
-        # 检查边界情况
+        # Check edge cases
         if not cashflows or len(cashflows) < 2:
-            return 0.1  # 默认折现率
+            return 0.1  # Default discount rate
         
-        # 检查是否有负现金流（投资）
+        # Check for negative cash flow (investment)
         has_negative = any(cf < 0 for cf in cashflows)
         has_positive = any(cf > 0 for cf in cashflows)
         
-        # 如果没有负现金流或没有正现金流，无法计算合理的IRR
+        # If there's no negative or no positive cash flow, a reasonable IRR cannot be calculated
         if not has_negative or not has_positive:
-            return 0.1  # 返回默认折现率
+            return 0.1  # Return default discount rate
         
-        # 检查第一期现金流是否过小
+        # Check if the first cash flow is too small
         if abs(cashflows[0]) < 1e-6:
-            return 0.1  # 返回默认折现率
+            return 0.1  # Return default discount rate
         
-        x0 = 0.1  # 初始猜测值
+        x0 = 0.1  # Initial guess
         iterations = 0
         
         while iterations < max_iterations:
@@ -668,7 +668,7 @@ class OptimizerUtils:
             
             try:
                 for t, cf in enumerate(cashflows):
-                    if abs(cf) < 1e-10:  # 跳过过小的现金流
+                    if abs(cf) < 1e-10:  # Skip very small cash flows
                         continue
                     power_term = (1 + x0) ** t
                     if power_term == 0 or not np.isfinite(power_term):
@@ -680,29 +680,29 @@ class OptimizerUtils:
                             break
                         derivative += -t * cf / derivative_term
                 
-                # 检查计算结果是否有效
+                # Check if calculation results are valid
                 if not np.isfinite(npv) or not np.isfinite(derivative) or abs(derivative) < 1e-10:
-                    return 0.1  # 返回默认折现率
+                    return 0.1  # Return default discount rate
                 
                 if abs(npv) < precision:
                     return x0
                     
                 x1 = x0 - npv / derivative
                 
-                # 检查新的猜测值是否合理
-                if not np.isfinite(x1) or x1 < -0.99:  # 避免极端值
-                    return 0.1  # 返回默认折现率
+                # Check if the new guess is reasonable
+                if not np.isfinite(x1) or x1 < -0.99:  # Avoid extreme values
+                    return 0.1  # Return default discount rate
                 
                 if abs(x1 - x0) < precision:
-                    return max(x1, -0.99)  # 确保返回值不会过小
+                    return max(x1, -0.99)  # Ensure the return value is not too small
                     
-                x0 = max(x1, -0.99)  # 限制下界
+                x0 = max(x1, -0.99)  # Limit lower bound
                 iterations += 1
                 
             except (OverflowError, ZeroDivisionError, ValueError):
-                return 0.1  # 返回默认折现率
+                return 0.1  # Return default discount rate
         
-        return 0.1  # 如果未收敛，返回默认折现率
+        return 0.1  # If not converged, return default discount rate
 
     @staticmethod
     def calculate_economic_metrics(
@@ -713,37 +713,37 @@ class OptimizerUtils:
         battery_construction_cost: float = 0,
         pv_cost: float = 0.0
     ) -> Dict:
-        """计算项目的经济性指标
+        """Calculate economic metrics for the project
         
         Args:
-            total_cost: 总投资成本（元）
-            annual_savings: 年节省费用（元/年）
-            project_lifetime: 项目寿命（年），默认25年
-            discount_rate: 折现率，默认8%
-            battery_construction_cost: 电池建设成本（元）
-            pv_cost: 光伏建设成本（元）
+            total_cost: Total investment cost (CNY)
+            annual_savings: Annual savings (CNY/year)
+            project_lifetime: Project lifetime (years), default 25 years
+            discount_rate: Discount rate, default 8%
+            battery_construction_cost: Battery construction cost (CNY)
+            pv_cost: PV construction cost (CNY)
         Returns:
-            Dict: 包含以下经济性指标：
-                - net_benefit: 净收益（元）
-                - irr: 内部收益率（%）
-                - payback_period: 静态投资回收期（年）
+            Dict: Contains the following economic metrics:
+                - net_benefit: Net benefit (CNY)
+                - irr: Internal Rate of Return (%)
+                - payback_period: Static payback period (years)
         """
-        # 处理边界情况：如果没有投资或没有节省，返回默认值
+        # Handle edge cases: if no investment or no savings, return default values
         if battery_construction_cost <= 0 or annual_savings <= 0:
             return {
                 "payback_period": 0.0 if battery_construction_cost <= 0 else float('inf'),
-                "npv": annual_savings * project_lifetime,  # 简单累计
-                "irr": 0.0  # 默认IRR为0%
+                "npv": annual_savings * project_lifetime,  # Simple accumulation
+                "irr": 0.0  # Default IRR is 0%
             }
         
-        # 构建现金流：第一年包含投资成本和收益，后续年份只有收益
-        cash_flows = [-10000000 - pv_cost + 3976760]  # 第0年：初始投资 + 第一年收益
-        for _ in range(project_lifetime - 1):  # 剩余年份
+        # Construct cash flows: Year 0 includes investment cost and first year's savings, subsequent years only savings
+        cash_flows = [-10000000 - pv_cost + 3976760]  # Year 0: Initial investment + first year's savings
+        for _ in range(project_lifetime - 1):  # Remaining years
             cash_flows.append(3976760)
         
         print(cash_flows)
         
-        # 计算净现值（NPV）
+        # Calculate Net Present Value (NPV)
         npv = 0
         try:
             for i, cf in enumerate(cash_flows):
@@ -753,13 +753,13 @@ class OptimizerUtils:
         except (OverflowError, ZeroDivisionError):
             npv = 0
 
-        # 计算回本周期
+        # Calculate payback period
         cumulative_cf = 0
         payback_period = float('inf')
         for i, cf in enumerate(cash_flows):
             cumulative_cf += cf
             if cumulative_cf >= 0:
-                # 使用线性插值计算更精确的回本周期
+                # Use linear interpolation to calculate a more precise payback period
                 if i == 0:
                     payback_period = 0
                 else:
@@ -770,15 +770,15 @@ class OptimizerUtils:
                         payback_period = i
                 break
 
-        # 计算内部收益率
+        # Calculate Internal Rate of Return
         try:
             irr = npf.irr(cash_flows)*100
         except Exception as e:
-            print(f"计算失败: {e}")
+            print(f"Calculation failed: {e}")
         # try:
         #     irr = OptimizerUtils.calculate_irr(cash_flows) * 100  # Convert to percentage
         # except:
-        #     irr = 0.0  # 默认IRR为0%
+        #     irr = 0.0  # Default IRR is 0%
         
         return {
             "payback_period": payback_period,
