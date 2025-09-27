@@ -11,6 +11,8 @@ data/
 seasonal_comparison/
 examples/test.py
 
+paper/
+
 analysis/
 
 # Distribution / packaging
