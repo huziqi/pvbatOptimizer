@@ -8,11 +8,12 @@ from datetime import datetime
 def run_basic_example():
     # Load example data
     net_load=OptimizerUtils.net_profiles("data/net_load/roof_PartFacade/15min/net_load_E39.csv",None)
+    building_load=OptimizerUtils.net_profiles("data/load_raw_data/15min/load_E39.csv",None)
 
-    
+
     config = OptimizerConfig(
         battery_cost_per_kwh=1000,
-        electricity_sell_price_ratio=0.0,
+        electricity_sell_price_ratio=0.6,
         battery_charge_efficiency=0.913,
         battery_discharge_efficiency=0.913,
         charge_power_capacity=0.45,
@@ -21,11 +22,12 @@ def run_basic_example():
         years=15,
         discount_rate=0.13,
         decision_step=0.25,
+        pv_cost=2271486,
+        # pv_cost=0,
         # peak_price=1.61,
         # high_price=1.34,
         # flat_price=0.81,
         # valley_price=0.35,
-        max_battery_capacity=2349,
         demand_charge_rate=33.8
         # demand_charge_rate=0
     )
@@ -46,43 +48,35 @@ def run_basic_example():
     print(f"Battery construction cost: {result['battery_construction_cost']:.2f} currency")
     print(f"\nOptimization duration: {end_time - start_time:.2f} seconds")
     
-    # Plot results
-    # OptimizerUtils.plot_seasonal_comparison(
-    #     result,
-    #     net_load,
-    #     months=(1,6),
-    #     save_dir='seasonal_comparison'
-    # )
-
     # Save results to CSV
-    result_df = pd.DataFrame(result)
-    result_df.to_csv('seasonal_comparison/optimization_results.csv', index=False)
-    print("Optimization results saved to 'optimization_results.csv'")
+    # result_df = pd.DataFrame(result)
+    # result_df.to_csv('seasonal_comparison/optimization_results.csv', index=False)
+    # print("Optimization results saved to 'optimization_results.csv'")
 
-    # Calculate KPIs
-    kpis = OptimizerUtils.calculate_system_metrics(result, net_load)
-    print("\nKPIs:")
-    for kpi, value in kpis.items():
-        print(f"{kpi}: {value}")
 
+    # 计算建筑负荷的总电费
+    building_load_cost = OptimizerUtils.calculate_building_load_cost(building_load, config)
+    
+    print("\n建筑负荷电费分析:")
+    print(f"总电能费用: {building_load_cost['total_energy_cost']:.2f}元")
+    print(f"总需量费用: {building_load_cost['total_demand_cost']:.2f}元")
+    print(f"建筑负荷总电费: {building_load_cost['total_cost']:.2f}元")
+
+    annual_savings = building_load_cost['total_cost'] - result['optimized_total_cost']
     # 计算并打印经济性指标
     economic_metrics = OptimizerUtils.calculate_economic_metrics(
-        total_cost=result['total_cost'],
-        annual_savings=result['annual_savings'],
+        annual_savings=annual_savings,
         project_lifetime=config.years,
-        discount_rate=0.01,
+        discount_rate=0.0155,
         battery_construction_cost=result['battery_construction_cost'],
-        pv_cost=2271486
-        # pv_cost=0
+        pv_cost=config.pv_cost
     )
     
     print("\n经济性指标:")
     print(f"静态投资回收期: {economic_metrics['payback_period']:.2f}年")
     print(f"净现值: {economic_metrics['npv']:.2f}元")
     print(f"内部收益率: {economic_metrics['irr']:.2f}%")
-    # OptimizerUtils.plot_single_fig(result['grid_export'], "Time", "Grid Export (kWh)", "seasonal_comparison/grid_export.png")
 
-    # OptimizerUtils.calculate_daily_battery_cycles(result,save_path='seasonal_comparison/daily_battery_cycles.png')
 
 
 def run_multi_plot_example():
@@ -95,6 +89,13 @@ def run_multi_plot_example():
         "E25_2": OptimizerUtils.net_profiles("data/net_load/roof_PartFacade/15min/net_load_E25_2.csv", None),
         "E37": OptimizerUtils.net_profiles("data/net_load/roof_PartFacade/15min/net_load_E37.csv", None),
         "E39": OptimizerUtils.net_profiles("data/net_load/roof_PartFacade/15min/net_load_E39.csv", None)
+    }
+
+    building_loads = {
+        "E13": OptimizerUtils.net_profiles("data/load_raw_data/15min/load_E13.csv", None),
+        "E25_2": OptimizerUtils.net_profiles("data/load_raw_data/15min/load_E25_2.csv", None),
+        "E37": OptimizerUtils.net_profiles("data/load_raw_data/15min/load_E37.csv", None),
+        "E39": OptimizerUtils.net_profiles("data/load_raw_data/15min/load_E39.csv", None)
     }
     
     # Configuration for multi-plot optimization
@@ -109,11 +110,11 @@ def run_multi_plot_example():
         years=15,
         discount_rate=0.13,
         decision_step=0.25,
+        pv_cost=7867584,
         peak_price=1.61,
         high_price=1.34,
         flat_price=0.81,
         valley_price=0.35,
-        # max_battery_capacity=1368,
         # demand_charge_rate=33.8
         demand_charge_rate=0
     )
@@ -158,18 +159,33 @@ def run_multi_plot_example():
         
         # Calculate and print economic metrics for multi-plot system
         economic_metrics = OptimizerUtils.calculate_economic_metrics(
-            total_cost=multi_result['total_cost'],
             annual_savings=total_annual_savings,
             project_lifetime=config.years,
             discount_rate=0.0155,
             battery_construction_cost=total_construction_cost,
-            pv_cost=7867584
+            pv_cost=config.pv_cost
         )
         
         print(f"\n=== Multi-Plot Economic Metrics ===")
         print(f"Payback period: {economic_metrics['payback_period']:.2f} years")
         print(f"NPV: {economic_metrics['npv']:.2f}")
         print(f"IRR: {economic_metrics['irr']:.2f}%")
+        
+        # 计算各建筑的负荷电费
+        print(f"\n=== Building Load Electricity Cost Analysis ===")
+        total_building_cost = 0
+        for plot_name, load_data in building_loads.items():
+            building_cost = OptimizerUtils.calculate_building_load_cost(load_data, config)
+            total_building_cost += building_cost['total_cost']
+            
+            print(f"\n--- Plot {plot_name} Building Load Cost ---")
+            print(f"总电能费用: {building_cost['total_energy_cost']:.2f}元")
+            print(f"总需量费用: {building_cost['total_demand_cost']:.2f}元")
+            print(f"建筑负荷总电费: {building_cost['total_cost']:.2f}元")
+            
+        
+        print(f"\n=== Total Building Load Cost Summary ===")
+        print(f"所有建筑负荷总电费: {total_building_cost:.2f}元")
         
         # Save multi-plot results
         multi_result_summary = pd.DataFrame({

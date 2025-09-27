@@ -315,5 +315,8 @@ class PVBatOptimizer_linearProg(PVBatOptimizer):
             "operational_cost_saving_ratio": (original_energy_cost+original_demand_cost - new_energy_cost - new_demand_cost)/(original_energy_cost+original_demand_cost),
             "sell_energy_profit": sell_energy_profit,
             "sell_energy_profit_ratio": sell_energy_profit/(original_energy_cost+original_demand_cost),
-            "new_energy_cost_without_demand_charge": new_energy_cost_without_demand_charge
+            "new_energy_cost_without_demand_charge": new_energy_cost_without_demand_charge,
+            "optimized_energy_cost": new_energy_cost,
+            "optimized_demand_cost": new_demand_cost,
+            "optimized_total_cost": new_energy_cost + new_demand_cost
             }

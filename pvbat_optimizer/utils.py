@@ -705,8 +705,115 @@ class OptimizerUtils:
         return 0.1  # 如果未收敛，返回默认折现率
 
     @staticmethod
+    def calculate_building_load_cost(
+        building_load: pd.Series,
+        config: 'OptimizerConfig'
+    ) -> Dict:
+        """计算建筑负荷的总电费成本
+        
+        Args:
+            building_load: 建筑负荷时间序列数据
+            config: 优化器配置，包含ToU电价信息
+            
+        Returns:
+            Dict: 包含以下电费信息：
+                - total_energy_cost: 总电能费用
+                - total_demand_cost: 总需量费用（如果适用）
+                - total_cost: 总电费成本
+                - energy_cost_breakdown: 按时间段分解的电能费用（如果使用季节性电价）
+        """
+        if building_load.empty:
+            return {
+                "total_energy_cost": 0.0,
+                "total_demand_cost": 0.0,
+                "total_cost": 0.0,
+                "energy_cost_breakdown": {}
+            }
+        
+        # 只考虑正的负荷值（用电），负值表示发电
+        grid_import = pd.Series(np.maximum(building_load.values, 0), index=building_load.index)
+        
+        # 计算电能费用
+        total_energy_cost = 0.0
+        energy_cost_breakdown = {}
+        
+        # 如果使用季节性电价，记录各时段费用
+        if config.use_seasonal_prices:
+            peak_cost = high_cost = flat_cost = valley_cost = 0.0
+        
+        for timestamp, load_value in grid_import.items():
+            if load_value > 0:  # 只计算用电成本
+                price = config.get_price_for_time(timestamp)
+                energy_cost = load_value * price * config.decision_step
+                total_energy_cost += energy_cost
+                
+                # 分时段统计（仅在使用季节性电价时）
+                if config.use_seasonal_prices:
+                    month = timestamp.month
+                    hour = timestamp.hour
+                    
+                    # 判断时段类型
+                    if month in [7, 8]:  # 7-8月
+                        if 20 <= hour <= 23:
+                            peak_cost += energy_cost
+                        elif 16 <= hour < 19:
+                            high_cost += energy_cost
+                        elif 6 <= hour < 11 or 14 <= hour < 15:
+                            flat_cost += energy_cost
+                        else:
+                            valley_cost += energy_cost
+                    elif month in [1, 12]:  # 1、12月
+                        if 18 <= hour <= 21:
+                            peak_cost += energy_cost
+                        elif 16 <= hour <= 17 or 22 <= hour <= 23:
+                            high_cost += energy_cost
+                        elif 6 <= hour <= 11 or 12 <= hour <= 13:
+                            flat_cost += energy_cost
+                        else:
+                            valley_cost += energy_cost
+                    else:  # 其他月份
+                        if 18 <= hour <= 21:
+                            peak_cost += energy_cost
+                        elif 16 <= hour <= 17 or 22 <= hour <= 23:
+                            high_cost += energy_cost
+                        elif 6 <= hour <= 11 or 12 <= hour <= 13:
+                            flat_cost += energy_cost
+                        else:
+                            valley_cost += energy_cost
+        
+        if config.use_seasonal_prices:
+            energy_cost_breakdown = {
+                "peak_cost": peak_cost,
+                "high_cost": high_cost,
+                "flat_cost": flat_cost,
+                "valley_cost": valley_cost
+            }
+        
+        # 计算需量费用（如果配置了需量电价）
+        total_demand_cost = 0.0
+        if config.demand_charge_rate > 0:
+            # 按月计算需量费用
+            monthly_peak_demands = {}
+            
+            # 按月分组计算最大需量
+            for month in range(1, 13):
+                month_data = grid_import[grid_import.index.month == month]
+                if not month_data.empty:
+                    monthly_peak = month_data.max()
+                    monthly_peak_demands[month] = monthly_peak
+                    total_demand_cost += monthly_peak * config.demand_charge_rate
+        
+        total_cost = total_energy_cost + total_demand_cost
+        
+        return {
+            "total_energy_cost": total_energy_cost,
+            "total_demand_cost": total_demand_cost,
+            "total_cost": total_cost,
+            "energy_cost_breakdown": energy_cost_breakdown
+        }
+
+    @staticmethod
     def calculate_economic_metrics(
-        total_cost: float,
         annual_savings: float,
         project_lifetime: int = 25,
         discount_rate: float = 0.08,
@@ -716,7 +823,6 @@ class OptimizerUtils:
         """计算项目的经济性指标
         
         Args:
-            total_cost: 总投资成本（元）
             annual_savings: 年节省费用（元/年）
             project_lifetime: 项目寿命（年），默认25年
             discount_rate: 折现率，默认8%
@@ -736,22 +842,18 @@ class OptimizerUtils:
                 "irr": 0.0  # 默认IRR为0%
             }
         
-        # 构建现金流：第一年包含投资成本和收益，后续年份只有收益
-        cash_flows = [-10000000 - pv_cost + 3976760]  # 第0年：初始投资 + 第一年收益
-        for _ in range(project_lifetime - 1):  # 剩余年份
-            cash_flows.append(3976760)
+        # 构建现金流：第一年包含投资成本，后续年份只有收益
+        cash_flows = [-battery_construction_cost - pv_cost]  # 第0年：初始投资
+        for _ in range(project_lifetime):  # 剩余年份
+            cash_flows.append(annual_savings)
         
         print(cash_flows)
         
         # 计算净现值（NPV）
-        npv = 0
         try:
-            for i, cf in enumerate(cash_flows):
-                discount_factor = (1 + discount_rate) ** i
-                if np.isfinite(discount_factor) and discount_factor > 0:
-                    npv += cf / discount_factor
-        except (OverflowError, ZeroDivisionError):
-            npv = 0
+            npv = npf.npv(discount_rate, cash_flows)
+        except Exception as e:
+            print(f"计算NPV失败: {e}")
 
         # 计算回本周期
         cumulative_cf = 0
@@ -774,11 +876,7 @@ class OptimizerUtils:
         try:
             irr = npf.irr(cash_flows)*100
         except Exception as e:
-            print(f"计算失败: {e}")
-        # try:
-        #     irr = OptimizerUtils.calculate_irr(cash_flows) * 100  # Convert to percentage
-        # except:
-        #     irr = 0.0  # 默认IRR为0%
+            print(f"计算IRR失败: {e}")
         
         return {
             "payback_period": payback_period,
