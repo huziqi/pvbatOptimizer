@@ -7,8 +7,8 @@ from datetime import datetime
 
 def run_basic_example():
     # Load example data
-    net_load=OptimizerUtils.net_profiles("data/net_load/roof_PartFacade/15min/net_load_E39.csv",None)
-    building_load=OptimizerUtils.net_profiles("data/load_raw_data/15min/load_E39.csv",None)
+    net_load=OptimizerUtils.net_profiles("data/net_load/roof_PartFacade/15min/net_load_E13.csv",None)
+    building_load=OptimizerUtils.net_profiles("data/load_raw_data/15min/load_E13.csv",None)
 
 
     config = OptimizerConfig(
@@ -22,7 +22,8 @@ def run_basic_example():
         years=15,
         discount_rate=0.13,
         decision_step=0.25,
-        pv_cost=2271486,
+        max_battery_capacity=2743,
+        pv_cost=1761845,
         # pv_cost=0,
         # peak_price=1.61,
         # high_price=1.34,
@@ -86,14 +87,14 @@ def run_multi_plot_example():
     # Load net load data for multiple plots
     net_loads = {
         "E13": OptimizerUtils.net_profiles("data/net_load/roof_PartFacade/15min/net_load_E13.csv", None),
-        "E25_2": OptimizerUtils.net_profiles("data/net_load/roof_PartFacade/15min/net_load_E25_2.csv", None),
+        "E25": OptimizerUtils.net_profiles("data/net_load/roof_PartFacade/15min/net_load_E25_2.csv", None),
         "E37": OptimizerUtils.net_profiles("data/net_load/roof_PartFacade/15min/net_load_E37.csv", None),
         "E39": OptimizerUtils.net_profiles("data/net_load/roof_PartFacade/15min/net_load_E39.csv", None)
     }
 
     building_loads = {
         "E13": OptimizerUtils.net_profiles("data/load_raw_data/15min/load_E13.csv", None),
-        "E25_2": OptimizerUtils.net_profiles("data/load_raw_data/15min/load_E25_2.csv", None),
+        "E25": OptimizerUtils.net_profiles("data/load_raw_data/15min/load_E25_2.csv", None),
         "E37": OptimizerUtils.net_profiles("data/load_raw_data/15min/load_E37.csv", None),
         "E39": OptimizerUtils.net_profiles("data/load_raw_data/15min/load_E39.csv", None)
     }
@@ -111,6 +112,7 @@ def run_multi_plot_example():
         discount_rate=0.13,
         decision_step=0.25,
         pv_cost=7867584,
+        # pv_cost=0,
         peak_price=1.61,
         high_price=1.34,
         flat_price=0.81,
@@ -137,7 +139,7 @@ def run_multi_plot_example():
         
         # Print detailed results for each plot
         print(f"\n=== Detailed Results by Plot ===")
-        total_annual_savings = 0
+        total_optimization_cost = 0
         total_construction_cost = 0
         
         for plot_name, plot_result in multi_result["plots"].items():
@@ -148,29 +150,14 @@ def run_multi_plot_example():
             print(f"Original total cost: {plot_result['original_total_cost']:.2f}")
             print(f"Optimized total cost: {plot_result['optimized_total_cost']:.2f}")
             
-            total_annual_savings += plot_result['annual_savings']
+            total_optimization_cost += plot_result['optimized_total_cost']
             total_construction_cost += plot_result['battery_construction_cost']
         
         print(f"\n=== Overall Summary ===")
         print(f"Total battery capacity used: {multi_result['total_battery_capacity']:.2f} / {total_battery_capacity:.2f} kWh")
         print(f"Total construction cost: {total_construction_cost:.2f}")
-        print(f"Total annual savings: {total_annual_savings:.2f}")
-        print(f"Total optimization cost: {multi_result['total_cost']:.2f}")
-        
-        # Calculate and print economic metrics for multi-plot system
-        economic_metrics = OptimizerUtils.calculate_economic_metrics(
-            annual_savings=total_annual_savings,
-            project_lifetime=config.years,
-            discount_rate=0.0155,
-            battery_construction_cost=total_construction_cost,
-            pv_cost=config.pv_cost
-        )
-        
-        print(f"\n=== Multi-Plot Economic Metrics ===")
-        print(f"Payback period: {economic_metrics['payback_period']:.2f} years")
-        print(f"NPV: {economic_metrics['npv']:.2f}")
-        print(f"IRR: {economic_metrics['irr']:.2f}%")
-        
+        print(f"Total optimization cost: {total_optimization_cost:.2f}")
+
         # 计算各建筑的负荷电费
         print(f"\n=== Building Load Electricity Cost Analysis ===")
         total_building_cost = 0
@@ -186,6 +173,23 @@ def run_multi_plot_example():
         
         print(f"\n=== Total Building Load Cost Summary ===")
         print(f"所有建筑负荷总电费: {total_building_cost:.2f}元")
+
+        total_annual_savings = total_building_cost - total_optimization_cost
+        # Calculate and print economic metrics for multi-plot system
+        economic_metrics = OptimizerUtils.calculate_economic_metrics(
+            annual_savings=total_annual_savings,
+            project_lifetime=config.years,
+            discount_rate=0.0155,
+            battery_construction_cost=total_construction_cost,
+            pv_cost=config.pv_cost
+        )
+        
+        print(f"\n=== Multi-Plot Economic Metrics ===")
+        print(f"Payback period: {economic_metrics['payback_period']:.2f} years")
+        print(f"NPV: {economic_metrics['npv']:.2f}")
+        print(f"IRR: {economic_metrics['irr']:.2f}%")
+        
+        
         
         # Save multi-plot results
         multi_result_summary = pd.DataFrame({
