@@ -54,6 +54,9 @@ class OptimizerConfig:
 
     # decision step
     decision_step: float = 0.25  # Decision step
+
+    # pv cost
+    pv_cost: float = 0  # PV cost
     
     def __post_init__(self):
         """Validate configuration parameters"""

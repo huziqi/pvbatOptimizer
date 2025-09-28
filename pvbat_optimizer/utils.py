@@ -705,18 +705,124 @@ class OptimizerUtils:
         return 0.1  # If not converged, return default discount rate
 
     @staticmethod
+    def calculate_building_load_cost(
+        building_load: pd.Series,
+        config: 'OptimizerConfig'
+    ) -> Dict:
+        """Calculates the total electricity cost for building load
+        
+        Args:
+            building_load: Time series data of building load
+            config: Optimizer configuration, including ToU price information
+            
+        Returns:
+            Dict: Contains the following electricity cost information:
+                - total_energy_cost: Total energy cost
+                - total_demand_cost: Total demand cost (if applicable)
+                - total_cost: Total electricity cost
+                - energy_cost_breakdown: Energy cost breakdown by period (if seasonal prices are used)
+        """
+        if building_load.empty:
+            return {
+                "total_energy_cost": 0.0,
+                "total_demand_cost": 0.0,
+                "total_cost": 0.0,
+                "energy_cost_breakdown": {}
+            }
+        
+        # Only consider positive load values (consumption), negative values represent generation
+        grid_import = pd.Series(np.maximum(building_load.values, 0), index=building_load.index)
+        
+        # Calculate energy cost
+        total_energy_cost = 0.0
+        energy_cost_breakdown = {}
+        
+        # If seasonal prices are used, record costs for each period
+        if config.use_seasonal_prices:
+            peak_cost = high_cost = flat_cost = valley_cost = 0.0
+        
+        for timestamp, load_value in grid_import.items():
+            if load_value > 0:  # Only calculate consumption cost
+                price = config.get_price_for_time(timestamp)
+                energy_cost = load_value * price * config.decision_step
+                total_energy_cost += energy_cost
+                
+                # Period-based statistics (only when seasonal prices are used)
+                if config.use_seasonal_prices:
+                    month = timestamp.month
+                    hour = timestamp.hour
+                    
+                    # Determine period type
+                    if month in [7, 8]:  # July-August
+                        if 20 <= hour <= 23:
+                            peak_cost += energy_cost
+                        elif 16 <= hour < 19:
+                            high_cost += energy_cost
+                        elif 6 <= hour < 11 or 14 <= hour < 15:
+                            flat_cost += energy_cost
+                        else:
+                            valley_cost += energy_cost
+                    elif month in [1, 12]:  # January, December
+                        if 18 <= hour <= 21:
+                            peak_cost += energy_cost
+                        elif 16 <= hour <= 17 or 22 <= hour <= 23:
+                            high_cost += energy_cost
+                        elif 6 <= hour <= 11 or 12 <= hour <= 13:
+                            flat_cost += energy_cost
+                        else:
+                            valley_cost += energy_cost
+                    else:  # Other months
+                        if 18 <= hour <= 21:
+                            peak_cost += energy_cost
+                        elif 16 <= hour <= 17 or 22 <= hour <= 23:
+                            high_cost += energy_cost
+                        elif 6 <= hour < 11 or 12 <= hour < 13:
+                            flat_cost += energy_cost
+                        else:
+                            valley_cost += energy_cost
+        
+        if config.use_seasonal_prices:
+            energy_cost_breakdown = {
+                "peak_cost": peak_cost,
+                "high_cost": high_cost,
+                "flat_cost": flat_cost,
+                "valley_cost": valley_cost
+            }
+        
+        # Calculate demand cost (if demand charge is configured)
+        total_demand_cost = 0.0
+        if config.demand_charge_rate > 0:
+            # Calculate monthly demand cost
+            monthly_peak_demands = {}
+            
+            # Group by month to calculate maximum demand
+            for month in range(1, 13):
+                month_data = grid_import[grid_import.index.month == month]
+                if not month_data.empty:
+                    monthly_peak = month_data.max()
+                    monthly_peak_demands[month] = monthly_peak
+                    total_demand_cost += monthly_peak * config.demand_charge_rate
+        
+        total_cost = total_energy_cost + total_demand_cost
+        
+        return {
+            "total_energy_cost": total_energy_cost,
+            "total_demand_cost": total_demand_cost,
+            "total_cost": total_cost,
+            "energy_cost_breakdown": energy_cost_breakdown
+        }
+
+    @staticmethod
     def calculate_economic_metrics(
-        total_cost: float,
         annual_savings: float,
         project_lifetime: int = 25,
         discount_rate: float = 0.08,
         battery_construction_cost: float = 0,
         pv_cost: float = 0.0
     ) -> Dict:
-        """Calculate economic metrics for the project
+        """Calculates the economic metrics of the project
         
         Args:
-            total_cost: Total investment cost (CNY)
             annual_savings: Annual savings (CNY/year)
             project_lifetime: Project lifetime (years), default 25 years
             discount_rate: Discount rate, default 8%
@@ -736,22 +842,18 @@ class OptimizerUtils:
                 "irr": 0.0  # Default IRR is 0%
             }
         
-        # Construct cash flows: Year 0 includes investment cost and first year's savings, subsequent years only savings
-        cash_flows = [-10000000 - pv_cost + 3976760]  # Year 0: Initial investment + first year's savings
-        for _ in range(project_lifetime - 1):  # Remaining years
-            cash_flows.append(3976760)
+        # Construct cash flows: Year 0 includes investment cost, subsequent years only have benefits
+        cash_flows = [-battery_construction_cost - pv_cost]  # Year 0: Initial investment
+        for _ in range(project_lifetime):  # Remaining years
+            cash_flows.append(annual_savings)
         
         print(cash_flows)
         
         # Calculate Net Present Value (NPV)
-        npv = 0
         try:
-            for i, cf in enumerate(cash_flows):
-                discount_factor = (1 + discount_rate) ** i
-                if np.isfinite(discount_factor) and discount_factor > 0:
-                    npv += cf / discount_factor
-        except (OverflowError, ZeroDivisionError):
-            npv = 0
+            npv = npf.npv(discount_rate, cash_flows)
+        except Exception as e:
+            print(f"Failed to calculate NPV: {e}")
 
         # Calculate payback period
         cumulative_cf = 0
@@ -774,11 +876,7 @@ class OptimizerUtils:
         try:
             irr = npf.irr(cash_flows)*100
         except Exception as e:
-            print(f"Calculation failed: {e}")
-        # try:
-        #     irr = OptimizerUtils.calculate_irr(cash_flows) * 100  # Convert to percentage
-        # except:
-        #     irr = 0.0  # Default IRR is 0%
+            print(f"Failed to calculate IRR: {e}")
         
         return {
             "payback_period": payback_period,

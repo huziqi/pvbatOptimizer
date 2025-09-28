@@ -7,9 +7,9 @@ from datetime import datetime
 
 def run_basic_example():
     # Load example data
-    net_load=OptimizerUtils.net_profiles("Data/test_data.csv",None)
+    net_load=OptimizerUtils.net_profiles("Data/net_load_data1.csv",None)
+    building_load=OptimizerUtils.net_profiles("Data/building_load_data1.csv",None)
 
-    
     config = OptimizerConfig(
         battery_cost_per_kwh=1000,
         electricity_sell_price_ratio=0.0,
@@ -19,6 +19,7 @@ def run_basic_example():
         discharge_power_capacity=0.45,
         use_seasonal_prices=True,
         years=15,
+        pv_cost=0,
         discount_rate=0.13,
         decision_step=0.25,
         demand_charge_rate=33.8
@@ -40,27 +41,23 @@ def run_basic_example():
     print(f"Battery construction cost: {result['battery_construction_cost']:.2f} currency")
     print(f"\nOptimization duration: {end_time - start_time:.2f} seconds")
     
+    # calculate building load cost
+    building_load_cost = OptimizerUtils.calculate_building_load_cost(building_load, config)
+    
+    print("\nBuilding Load Electricity Cost Analysis:")
+    print(f"Total energy cost: {building_load_cost['total_energy_cost']:.2f} currency")
+    print(f"Total demand cost: {building_load_cost['total_demand_cost']:.2f} currency")
+    print(f"Total building load electricity cost: {building_load_cost['total_cost']:.2f} currency")
 
-    # Save results to CSV
-    result_df = pd.DataFrame(result)
-    result_df.to_csv('seasonal_comparison/optimization_results.csv', index=False)
-    print("Optimization results saved to 'optimization_results.csv'")
-
-    # Calculate KPIs
-    kpis = OptimizerUtils.calculate_system_metrics(result, net_load)
-    print("\nKPIs:")
-    for kpi, value in kpis.items():
-        print(f"{kpi}: {value}")
+    annual_savings = building_load_cost['total_cost'] - result['optimized_total_cost']
 
     # Calculate and print economic metrics
     economic_metrics = OptimizerUtils.calculate_economic_metrics(
-        total_cost=result['total_cost'],
-        annual_savings=result['annual_savings'],
+        annual_savings=annual_savings,
         project_lifetime=config.years,
-        discount_rate=0.01,
+        discount_rate=0.0155,
         battery_construction_cost=result['battery_construction_cost'],
-        pv_cost=2271486
-        # pv_cost=0
+        pv_cost=config.pv_cost
     )
     
     print("\nEconomic Metrics:")
@@ -78,8 +75,13 @@ def run_multi_plot_example():
     
     # Load net load data for multiple plots
     net_loads = {
-        "E13": OptimizerUtils.net_profiles("Data/test_data.csv", None),
-        "E25_2": OptimizerUtils.net_profiles("Data/test_data_2.csv", None)
+        "data1": OptimizerUtils.net_profiles("Data/net_load_data1.csv", None),
+        "data2": OptimizerUtils.net_profiles("Data/net_load_data2.csv", None)
+    }
+
+    building_loads = {
+        "data1": OptimizerUtils.net_profiles("Data/building_load_data1.csv", None),
+        "data2": OptimizerUtils.net_profiles("Data/building_load_data2.csv", None)
     }
     
     # Configuration for multi-plot optimization
@@ -92,6 +94,7 @@ def run_multi_plot_example():
         discharge_power_capacity=0.45,
         use_seasonal_prices=True,
         years=15,
+        pv_cost=0,
         discount_rate=0.13,
         decision_step=0.25,
         demand_charge_rate=33.8
@@ -115,7 +118,7 @@ def run_multi_plot_example():
         
         # Print detailed results for each plot
         print(f"\n=== Detailed Results by Plot ===")
-        total_annual_savings = 0
+        total_optimization_cost = 0
         total_construction_cost = 0
         
         for plot_name, plot_result in multi_result["plots"].items():
@@ -126,23 +129,38 @@ def run_multi_plot_example():
             print(f"Original total cost: {plot_result['original_total_cost']:.2f}")
             print(f"Optimized total cost: {plot_result['optimized_total_cost']:.2f}")
             
-            total_annual_savings += plot_result['annual_savings']
+            total_optimization_cost += plot_result['optimized_total_cost']
             total_construction_cost += plot_result['battery_construction_cost']
         
         print(f"\n=== Overall Summary ===")
         print(f"Total battery capacity used: {multi_result['total_battery_capacity']:.2f} / {total_battery_capacity:.2f} kWh")
         print(f"Total construction cost: {total_construction_cost:.2f}")
-        print(f"Total annual savings: {total_annual_savings:.2f}")
-        print(f"Total optimization cost: {multi_result['total_cost']:.2f}")
+        print(f"Total optimization cost: {total_optimization_cost:.2f}")
+
+        # Calculate electricity costs for each building load
+        print(f"\n=== Building Load Electricity Cost Analysis ===")
+        total_building_cost = 0
+        for plot_name, load_data in building_loads.items():
+            building_cost = OptimizerUtils.calculate_building_load_cost(load_data, config)
+            total_building_cost += building_cost['total_cost']
+            
+            print(f"\n--- Plot {plot_name} Building Load Cost ---")
+            print(f"Total energy cost: {building_cost['total_energy_cost']:.2f} CNY")
+            print(f"Total demand charge: {building_cost['total_demand_cost']:.2f} CNY")
+            print(f"Total building load electricity cost: {building_cost['total_cost']:.2f} CNY")
+            
         
+        print(f"\n=== Total Building Load Cost Summary ===")
+        print(f"Total electricity cost for all building loads: {total_building_cost:.2f} CNY")
+
+        total_annual_savings = total_building_cost - total_optimization_cost
         # Calculate and print economic metrics for multi-plot system
         economic_metrics = OptimizerUtils.calculate_economic_metrics(
-            total_cost=multi_result['total_cost'],
             annual_savings=total_annual_savings,
             project_lifetime=config.years,
             discount_rate=0.0155,
             battery_construction_cost=total_construction_cost,
-            pv_cost=7867584
+            pv_cost=config.pv_cost
         )
         
         print(f"\n=== Multi-Plot Economic Metrics ===")
